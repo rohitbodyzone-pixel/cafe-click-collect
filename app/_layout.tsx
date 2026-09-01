@@ -10,6 +10,7 @@ import { LoyaltyProvider } from '@/src/context/LoyaltyContext';
 import { PaymentSettingsProvider } from '@/src/context/PaymentSettingsContext';
 import { OrderProvider } from '@/src/context/OrderContext';
 import { ServiceRequestProvider } from '@/src/context/ServiceRequestContext';
+import { CustomerExperienceProvider } from '@/src/context/CustomerExperienceContext';
 import { AdminGate } from '@/src/components/AdminGate';
 
 function AppNavigator() {
@@ -37,8 +38,10 @@ export default function RootLayout() {
                   <PaymentSettingsProvider>
                     <OrderProvider>
                       <ServiceRequestProvider>
-                        <StatusBar style="dark" />
-                        <AppNavigator />
+                        <CustomerExperienceProvider>
+                          <StatusBar style="dark" />
+                          <AppNavigator />
+                        </CustomerExperienceProvider>
                       </ServiceRequestProvider>
                     </OrderProvider>
                   </PaymentSettingsProvider>

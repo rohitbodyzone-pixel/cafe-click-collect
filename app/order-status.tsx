@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { useLocalSearchParams, router } from 'expo-router';
+import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Header, Screen, Card } from '@/src/components/UI';
+import { Button, Header, Screen, Card } from '@/src/components/UI';
 import { useOrders, OrderStatus } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
+import { useCustomerExperience, QueuePositionInfo, ReviewShieldResult } from '@/src/context/CustomerExperienceContext';
 import {
   ServiceRequestType,
   useServiceRequests,
@@ -25,9 +26,18 @@ export default function OrderStatusScreen() {
   const { currentRestaurant } = useRestaurant();
   const { orders, latestOrder } = useOrders();
   const { requestService, isCoolingDown } = useServiceRequests();
+  const { getLiveQueue, notifyArrival, submitReviewFeedback } = useCustomerExperience();
 
   const [serviceMessage, setServiceMessage] = useState('');
   const [busyService, setBusyService] = useState(false);
+  const [arrivedNotified, setArrivedNotified] = useState(false);
+  const [queueInfo, setQueueInfo] = useState<QueuePositionInfo | null>(null);
+
+  // Review Shield State
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [reviewResult, setReviewResult] = useState<ReviewShieldResult | null>(null);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const order = orders.find((o) => o.id === id) || latestOrder;
   const statusIndex = order
@@ -37,6 +47,48 @@ export default function OrderStatusScreen() {
   const table = order?.orderType === 'table';
   const restaurantName = order?.restaurant?.name || currentRestaurant.name;
   const isReady = order?.status === 'Ready';
+  const isCompleted = order?.status === 'Collected';
+
+  // Poll live queue position every 5s for active orders
+  useEffect(() => {
+    if (!order?.id || isCompleted) return;
+    const fetchQueue = async () => {
+      const q = await getLiveQueue(order.id);
+      if (q.found) setQueueInfo(q);
+    };
+    void fetchQueue();
+    const interval = setInterval(fetchQueue, 5000);
+    return () => clearInterval(interval);
+  }, [order?.id, isCompleted, getLiveQueue]);
+
+  const handleArrival = async () => {
+    if (!order?.id) return;
+    try {
+      await notifyArrival(order.id, 'Customer is outside / at counter');
+      setArrivedNotified(true);
+    } catch (e: any) {
+      alert(e.message || 'Could not notify staff.');
+    }
+  };
+
+  const handleRatingSelect = async (stars: number) => {
+    setSelectedRating(stars);
+    if (stars >= 4 && order?.id) {
+      // Auto-submit 4-5 star rating
+      setSubmittingFeedback(true);
+      const res = await submitReviewFeedback(order.id, stars, '');
+      setReviewResult(res);
+      setSubmittingFeedback(false);
+    }
+  };
+
+  const handleSubmitLowRating = async () => {
+    if (!order?.id || selectedRating === 0) return;
+    setSubmittingFeedback(true);
+    const res = await submitReviewFeedback(order.id, selectedRating, feedbackText);
+    setReviewResult(res);
+    setSubmittingFeedback(false);
+  };
 
   const handleTableService = async (type: ServiceRequestType) => {
     setBusyService(true);
@@ -124,6 +176,52 @@ export default function OrderStatusScreen() {
         ))}
       </Card>
 
+      {/* Live Queue Position & Smart Timing Banner */}
+      {!isCompleted && !isReady && queueInfo && queueInfo.found && (
+        <View style={s.queueBanner}>
+          <View style={s.queueIcon}>
+            <Ionicons name="people" size={18} color={colors.espresso} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.queueTitle}>
+              Queue Position #{queueInfo.queuePosition}
+            </Text>
+            <Text style={s.queueSub}>
+              {queueInfo.ordersAhead === 0
+                ? 'Your order is currently being prepared next!'
+                : `${queueInfo.ordersAhead} order${queueInfo.ordersAhead === 1 ? '' : 's'} ahead in queue · ~${queueInfo.estimatedPrepMinutes}m wait`}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Customer Arrival / Curbside Alert */}
+      {!table && !isCompleted && (
+        <Card style={s.arrivalCard}>
+          <View style={s.arrivalHeader}>
+            <Ionicons name="car-outline" size={20} color={colors.espresso} />
+            <Text style={s.arrivalTitle}>Arrived at the Café?</Text>
+          </View>
+          <Text style={s.arrivalHelp}>
+            Tap below when you reach {restaurantName} so our barista knows you’re here for handoff.
+          </Text>
+          <Pressable
+            disabled={arrivedNotified}
+            style={[s.arrivalBtn, arrivedNotified && s.arrivalBtnDone]}
+            onPress={handleArrival}
+          >
+            <Ionicons
+              name={arrivedNotified ? 'checkmark-circle' : 'navigate-outline'}
+              size={18}
+              color={arrivedNotified ? colors.green : colors.white}
+            />
+            <Text style={[s.arrivalBtnText, arrivedNotified && { color: colors.green }]}>
+              {arrivedNotified ? 'Staff Notified of Your Arrival!' : "I've Arrived / I'm Outside"}
+            </Text>
+          </Pressable>
+        </Card>
+      )}
+
       {/* Table Service Call Buttons (Call Staff, Water, Bill) */}
       {table && (
         <Card style={s.tableServiceCard}>
@@ -185,6 +283,91 @@ export default function OrderStatusScreen() {
             >
               {serviceMessage}
             </Text>
+          )}
+        </Card>
+      )}
+
+      {/* Review Shield Customer Recovery */}
+      {(isCompleted || isReady) && (
+        <Card style={s.reviewShieldCard}>
+          <Text style={s.reviewTitle}>How was your experience today?</Text>
+          <Text style={s.reviewSub}>
+            Your direct feedback helps us serve you better every visit.
+          </Text>
+
+          {/* Star Rating Row */}
+          <View style={s.starsRow}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Pressable
+                key={star}
+                onPress={() => void handleRatingSelect(star)}
+                style={s.starBtn}
+              >
+                <Ionicons
+                  name={star <= selectedRating ? 'star' : 'star-outline'}
+                  size={32}
+                  color={star <= selectedRating ? '#F5A623' : colors.line}
+                />
+              </Pressable>
+            ))}
+          </View>
+
+          {/* Intercept Low Rating (1-3 stars) with direct recovery discount */}
+          {selectedRating > 0 && selectedRating <= 3 && !reviewResult?.recoveryCode && (
+            <View style={s.recoveryForm}>
+              <Text style={s.recoveryPrompt}>
+                We're sorry your experience wasn't perfect. Please let our manager know what we can fix:
+              </Text>
+              <TextInput
+                style={s.feedbackInput}
+                placeholder="What could we have done better?"
+                placeholderTextColor={colors.muted}
+                multiline
+                numberOfLines={3}
+                value={feedbackText}
+                onChangeText={setFeedbackText}
+              />
+              <Button
+                label={submittingFeedback ? 'Submitting…' : 'Submit & Claim 20% Recovery Voucher'}
+                disabled={submittingFeedback}
+                onPress={() => void handleSubmitLowRating()}
+              />
+            </View>
+          )}
+
+          {/* Display Recovery Code */}
+          {reviewResult?.recoveryCode && (
+            <View style={s.recoveryVoucherBox}>
+              <Ionicons name="gift" size={24} color={colors.green} />
+              <Text style={s.voucherHeading}>Our Apologies — Please Accept This Voucher</Text>
+              <Text style={s.voucherCode}>{reviewResult.recoveryCode}</Text>
+              <Text style={s.voucherSub}>
+                20% OFF your next order at {restaurantName}. Applied automatically to your account.
+              </Text>
+            </View>
+          )}
+
+          {/* Display High Rating (4-5 stars) Google Prompt */}
+          {selectedRating >= 4 && (
+            <View style={s.publicReviewBox}>
+              <Ionicons name="heart" size={22} color={colors.caramel} />
+              <Text style={s.publicReviewText}>
+                We're thrilled you loved your order! Would you mind sharing a quick review on Google?
+              </Text>
+              <Pressable
+                style={s.googleReviewBtn}
+                onPress={() =>
+                  Linking.openURL(
+                    `https://www.google.com/search?q=${encodeURIComponent(
+                      `${restaurantName} cafe`,
+                    )}`,
+                  )
+                }
+              >
+                <Ionicons name="logo-google" size={16} color={colors.white} />
+                <Text style={s.googleReviewBtnText}>Leave Google Review</Text>
+              </Pressable>
+            </View>
           )}
         </Card>
       )}
@@ -375,4 +558,195 @@ const s = StyleSheet.create({
   payment: { color: colors.green, fontWeight: '800', marginBottom: 8, fontSize: 12 },
   reward: { color: colors.green, fontWeight: '700', marginTop: 8, fontSize: 12 },
   points: { color: colors.espresso, fontWeight: '800', marginTop: 9, fontSize: 12 },
+  queueBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FAF5EE',
+    borderWidth: 1,
+    borderColor: '#EBD8B8',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 12,
+  },
+  queueIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  queueTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.espresso,
+  },
+  queueSub: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  arrivalCard: {
+    marginTop: 12,
+    backgroundColor: '#F7F9FB',
+    borderColor: '#DCE5EE',
+    borderWidth: 1,
+  },
+  arrivalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  arrivalTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.espresso,
+  },
+  arrivalHelp: {
+    fontSize: 12,
+    color: colors.muted,
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  arrivalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.espresso,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  arrivalBtnDone: {
+    backgroundColor: colors.cream,
+    borderWidth: 1,
+    borderColor: colors.green,
+  },
+  arrivalBtnText: {
+    color: colors.white,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  reviewShieldCard: {
+    marginTop: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: '#F0E6D8',
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+  },
+  reviewTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.espresso,
+    textAlign: 'center',
+  },
+  reviewSub: {
+    fontSize: 12,
+    color: colors.muted,
+    textAlign: 'center',
+    marginTop: 3,
+    marginBottom: 14,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  starBtn: {
+    padding: 4,
+  },
+  recoveryForm: {
+    width: '100%',
+    marginTop: 10,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  recoveryPrompt: {
+    fontSize: 13,
+    color: colors.ink,
+    fontWeight: '700',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  feedbackInput: {
+    backgroundColor: colors.cream,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 13,
+    color: colors.ink,
+    minHeight: 70,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
+  recoveryVoucherBox: {
+    alignItems: 'center',
+    backgroundColor: '#F3F9F4',
+    borderColor: '#CBE6D0',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 12,
+    width: '100%',
+  },
+  voucherHeading: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.green,
+    marginTop: 6,
+  },
+  voucherCode: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.espresso,
+    letterSpacing: 2,
+    marginVertical: 6,
+    backgroundColor: colors.white,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.green,
+  },
+  voucherSub: {
+    fontSize: 12,
+    color: colors.muted,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  publicReviewBox: {
+    alignItems: 'center',
+    backgroundColor: '#FAF5EE',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 8,
+    width: '100%',
+  },
+  publicReviewText: {
+    fontSize: 13,
+    color: colors.ink,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  googleReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#4285F4',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  googleReviewBtnText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 13,
+  },
 });

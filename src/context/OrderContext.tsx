@@ -71,6 +71,8 @@ export type Order = {
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   amountPaid: number;
+  customerArrivedAt?: string;
+  arrivalNote?: string;
 };
 
 type Store = {
@@ -151,6 +153,8 @@ type OrderRow = {
   payment_method?: PaymentMethod;
   payment_status?: PaymentStatus;
   amount_paid_cents?: number;
+  customer_arrived_at?: string | null;
+  arrival_note?: string | null;
   order_items?: Array<{
     id: number;
     product_id: string;
@@ -198,6 +202,8 @@ function rowToOrder(row: OrderRow): Order {
     paymentMethod: row.payment_method ?? 'pay_at_counter',
     paymentStatus: row.payment_status ?? 'unpaid',
     amountPaid: (row.amount_paid_cents ?? 0) / 100,
+    customerArrivedAt: row.customer_arrived_at ?? undefined,
+    arrivalNote: row.arrival_note ?? undefined,
     items: (row.order_items ?? []).map((item) => ({
       cartKey: `saved-${item.id}`,
       product: {

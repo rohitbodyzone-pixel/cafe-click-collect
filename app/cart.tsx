@@ -1,17 +1,23 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Header, Screen } from '@/src/components/UI';
 import { money } from '@/src/data/products';
 import { useOrders } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
+import { useProducts } from '@/src/context/ProductContext';
+import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
 import { RewardsSummary } from '@/src/components/RewardsSummary';
 import { colors } from '@/src/theme';
 
 export default function Cart() {
   const { currentRestaurant } = useRestaurant();
+  const { products } = useProducts();
+  const { getSuggestedUpsell, saveUsual } = useCustomerExperience();
   const {
     cart,
+    addToCart,
     setQuantity,
     clearCart,
     orderMode,
@@ -19,8 +25,23 @@ export default function Cart() {
     cartRestaurantName,
   } = useOrders();
 
+  const [savedUsual, setSavedUsual] = useState(false);
+
   const restaurantName = cartRestaurantName || currentRestaurant.name;
   const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+
+  const suggestedUpsell = getSuggestedUpsell(cart, products);
+
+  const handleAddUpsell = () => {
+    if (!suggestedUpsell) return;
+    addToCart(suggestedUpsell.product, 1, undefined, []);
+  };
+
+  const handleSaveUsual = async () => {
+    if (cart.length === 0) return;
+    await saveUsual(cart, orderMode, undefined, `${cart[0].product.name} Usual`);
+    setSavedUsual(true);
+  };
 
   return (
     <Screen>
@@ -83,6 +104,43 @@ export default function Cart() {
             </Card>
           ))}
 
+          {/* Smart Add-on / Combo Upsell Suggestion */}
+          {suggestedUpsell && (
+            <Card style={s.upsellCard}>
+              <View style={s.upsellHeader}>
+                <Ionicons name="sparkles" size={16} color={colors.caramel} />
+                <Text style={s.upsellTitle}>{suggestedUpsell.rule.title}</Text>
+              </View>
+              <View style={s.upsellBody}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.upsellProdName}>{suggestedUpsell.product.name}</Text>
+                  <Text style={s.upsellDiscount}>
+                    {suggestedUpsell.rule.discountPercent}% Combo Discount ·{' '}
+                    {money(
+                      suggestedUpsell.product.price *
+                        (1 - suggestedUpsell.rule.discountPercent / 100),
+                    )}
+                  </Text>
+                </View>
+                <Pressable style={s.addUpsellBtn} onPress={handleAddUpsell}>
+                  <Text style={s.addUpsellBtnText}>+ Add</Text>
+                </Pressable>
+              </View>
+            </Card>
+          )}
+
+          {/* Save as Usual Button */}
+          <Pressable style={s.saveUsualBtn} onPress={handleSaveUsual} disabled={savedUsual}>
+            <Ionicons
+              name={savedUsual ? 'checkmark-circle' : 'star-outline'}
+              size={16}
+              color={savedUsual ? colors.green : colors.caramel}
+            />
+            <Text style={[s.saveUsualText, savedUsual && { color: colors.green }]}>
+              {savedUsual ? 'Saved as My Usual!' : 'Save this order as My Usual'}
+            </Text>
+          </Pressable>
+
           <View style={s.total}>
             <Text style={s.totalLabel}>Subtotal</Text>
             <Text style={s.totalValue}>{money(subtotal)}</Text>
@@ -90,7 +148,7 @@ export default function Cart() {
 
           <RewardsSummary />
 
-          <View style={{ flex: 1, minHeight: 25 }} />
+          <View style={{ flex: 1, minHeight: 20 }} />
 
           <Button
             label={
@@ -241,6 +299,69 @@ const s = StyleSheet.create({
   totalValue: {
     fontSize: 18,
     fontWeight: '900',
+    color: colors.espresso,
+  },
+  upsellCard: {
+    backgroundColor: '#FDF7EE',
+    borderColor: '#F3E5D0',
+    borderWidth: 1,
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 14,
+  },
+  upsellHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  upsellTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.caramel,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  upsellBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  upsellProdName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.espresso,
+  },
+  upsellDiscount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.green,
+    marginTop: 2,
+  },
+  addUpsellBtn: {
+    backgroundColor: colors.espresso,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  addUpsellBtnText: {
+    color: colors.white,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  saveUsualBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.cream,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  saveUsualText: {
+    fontSize: 13,
+    fontWeight: '800',
     color: colors.espresso,
   },
 });

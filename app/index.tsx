@@ -11,15 +11,23 @@ import { useTables } from '@/src/context/TableContext';
 import { ProductImage } from '@/src/components/ProductImage';
 import { useLoyalty } from '@/src/context/LoyaltyContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
+import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
 
 export default function MenuScreen() {
   const { currentRestaurant, selectRestaurantBySlug } = useRestaurant();
-  const { cart, orderMode, table, setOrderMode, orders } = useOrders();
+  const { cart, orderMode, table, setOrderMode, orders, addToCart, clearCart } = useOrders();
   const { table: tableCode, restaurant: restaurantSlug, r: shortSlug } =
     useLocalSearchParams<{ table?: string; restaurant?: string; r?: string }>();
   const { tables, loading: loadingTables } = useTables();
   const { products, loading, error } = useProducts();
   const { customerKey, balance, settings, promos } = useLoyalty();
+  const {
+    usual,
+    vipTier,
+    currentStreakDays,
+    customerPasses,
+    vipDiscountPercent,
+  } = useCustomerExperience();
   const [showTables, setShowTables] = useState(false);
 
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -197,7 +205,7 @@ export default function MenuScreen() {
           <View style={styles.navIcon}>
             <Ionicons name="storefront-outline" size={18} color={colors.espresso} />
           </View>
-          <Text style={styles.navLabel}>All Cafés</Text>
+          <Text style={styles.navLabel}>Cafés</Text>
         </Pressable>
         <Pressable
           style={styles.navItem}
@@ -210,20 +218,20 @@ export default function MenuScreen() {
         </Pressable>
         <Pressable
           style={styles.navItem}
+          onPress={() => router.push('/passes')}
+        >
+          <View style={styles.navIcon}>
+            <Ionicons name="ticket-outline" size={18} color={colors.espresso} />
+          </View>
+          <Text style={styles.navLabel}>Passes</Text>
+        </Pressable>
+        <Pressable
+          style={styles.navItem}
           onPress={() =>
             activeOrder
               ? router.push({ pathname: '/order-status', params: { id: activeOrder.id } })
               : router.push('/orders')
           }
-        >
-          <View style={styles.navIcon}>
-            <Ionicons name="receipt-outline" size={18} color={colors.espresso} />
-          </View>
-          <Text style={styles.navLabel}>Track</Text>
-        </Pressable>
-        <Pressable
-          style={styles.navItem}
-          onPress={() => router.push('/orders')}
         >
           <View style={styles.navIcon}>
             <Ionicons name="time-outline" size={18} color={colors.espresso} />
@@ -232,15 +240,26 @@ export default function MenuScreen() {
         </Pressable>
       </View>
 
+      {/* VIP & Streak Loyalty Card */}
       <Pressable
         style={styles.loyaltyCard}
         onPress={() => router.push('/rewards')}
       >
         <View style={styles.loyaltyTop}>
           <View>
-            <Text style={styles.cardEyebrow}>
-              {currentRestaurant.name.toUpperCase()} REWARDS
-            </Text>
+            <View style={styles.vipTagRow}>
+              <Text style={styles.cardEyebrow}>
+                {currentRestaurant.name.toUpperCase()}
+              </Text>
+              <View style={styles.vipPill}>
+                <Text style={styles.vipPillText}>{vipTier.toUpperCase()} VIP</Text>
+              </View>
+              {currentStreakDays > 1 && (
+                <View style={styles.streakPill}>
+                  <Text style={styles.streakPillText}>{currentStreakDays}D STREAK 🔥</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.points}>{balance.points} points</Text>
           </View>
           <View style={styles.giftCircle}>
@@ -250,7 +269,9 @@ export default function MenuScreen() {
         <Text style={styles.loyaltyTitle}>
           {balance.freeCoffees > 0
             ? `You have ${balance.freeCoffees} free coffee${balance.freeCoffees === 1 ? '' : 's'} ready!`
-            : `${balance.coffeeStamps} of ${settings.coffeeGoal} coffees toward your next free one`}
+            : vipDiscountPercent > 0
+            ? `${vipDiscountPercent}% VIP Regular discount unlocked on your orders.`
+            : `${settings.coffeeGoal - (balance.coffeeStamps % settings.coffeeGoal)} more coffees to your next reward`}
         </Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${loyaltyProgress}%` }]} />
@@ -262,6 +283,37 @@ export default function MenuScreen() {
           <Text style={styles.viewLink}>View rewards →</Text>
         </View>
       </Pressable>
+
+      {/* My Usual / 1-Tap Quick Reorder Card */}
+      {usual && usual.items && usual.items.length > 0 && (
+        <Card style={styles.usualCard}>
+          <View style={styles.usualHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="star" size={16} color={colors.caramel} />
+              <Text style={styles.usualTitle}>MY USUAL ORDER</Text>
+            </View>
+            <Text style={styles.usualPrice}>
+              {money(usual.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0))}
+            </Text>
+          </View>
+          <Text style={styles.usualItemsText}>
+            {usual.items.map((i) => `${i.quantity}x ${i.product.name}`).join(' + ')}
+          </Text>
+          <Pressable
+            style={styles.reorderUsualBtn}
+            onPress={() => {
+              clearCart();
+              usual.items.forEach((item) => {
+                addToCart(item.product, item.quantity, item.notes, item.customisations);
+              });
+              router.push('/cart');
+            }}
+          >
+            <Ionicons name="flash" size={16} color={colors.white} />
+            <Text style={styles.reorderUsualBtnText}>One-Tap Reorder</Text>
+          </Pressable>
+        </Card>
+      )}
 
       {activeOrder && (
         <Pressable
@@ -785,5 +837,78 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 9,
     fontWeight: '800',
+  },
+  vipTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  vipPill: {
+    backgroundColor: colors.caramel,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  vipPillText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  streakPill: {
+    backgroundColor: '#FF6B4A',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  streakPillText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  usualCard: {
+    backgroundColor: '#FFFDF9',
+    borderColor: '#EBD8B8',
+    borderWidth: 1,
+    borderRadius: 16,
+    marginBottom: 16,
+    padding: 14,
+  },
+  usualHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  usualTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.caramel,
+    letterSpacing: 0.5,
+  },
+  usualPrice: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.espresso,
+  },
+  usualItemsText: {
+    fontSize: 13,
+    color: colors.ink,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  reorderUsualBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.espresso,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  reorderUsualBtnText: {
+    color: colors.white,
+    fontWeight: '800',
+    fontSize: 13,
   },
 });

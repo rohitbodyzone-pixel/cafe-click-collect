@@ -356,6 +356,16 @@ export default function AdminKitchenScreen() {
                 </Text>
               </View>
 
+              {/* Customer Arrival Alert */}
+              {!!order.customerArrivedAt && (
+                <View style={s.arrivedAlertBanner}>
+                  <Ionicons name="car" size={16} color={colors.white} />
+                  <Text style={s.arrivedAlertText}>
+                    CUSTOMER IS OUTSIDE / AT COUNTER ({order.arrivalNote || 'Ready for handoff'})
+                  </Text>
+                </View>
+              )}
+
               {/* Items List */}
               <View style={s.itemsBox}>
                 {order.items.map((item, idx) => (
@@ -836,5 +846,21 @@ const s = StyleSheet.create({
     color: colors.muted,
     marginTop: 4,
     textAlign: 'center',
+  },
+  arrivedAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#D9381E',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  arrivedAlertText: {
+    color: colors.white,
+    fontWeight: '900',
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
 });
