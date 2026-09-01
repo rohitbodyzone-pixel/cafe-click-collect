@@ -22,19 +22,19 @@ type FoodCategory = {
   id: string;
   name: string;
   icon: keyof typeof Ionicons.glyphMap;
-  cuisine: string;
+  tag: string;
 };
 
 const CATEGORIES: FoodCategory[] = [
-  { id: 'coffee', name: 'Coffee & Drinks', icon: 'cafe-outline', cuisine: 'Coffee' },
-  { id: 'bakery', name: 'Bakery & Pastry', icon: 'nutrition-outline', cuisine: 'Bakery' },
-  { id: 'italian', name: 'Italian & Pasta', icon: 'restaurant-outline', cuisine: 'Italian' },
-  { id: 'healthy', name: 'Healthy & Bowls', icon: 'leaf-outline', cuisine: 'Breakfast' },
-  { id: 'dessert', name: 'Desserts & Sweet', icon: 'ice-cream-outline', cuisine: 'Dessert' },
+  { id: 'coffee', name: 'Coffee & Drinks', icon: 'cafe', tag: 'Coffee' },
+  { id: 'bakery', name: 'Bakery & Pastries', icon: 'nutrition', tag: 'Bakery' },
+  { id: 'pizza', name: 'Italian & Pizza', icon: 'pizza', tag: 'Italian' },
+  { id: 'healthy', name: 'Healthy Bowls', icon: 'leaf', tag: 'Breakfast' },
+  { id: 'dessert', name: 'Dessert & Sweet', icon: 'ice-cream', tag: 'Dessert' },
 ];
 
 export default function CustomerMarketplaceHome() {
-  const { restaurants, currentRestaurant, setCurrentRestaurant } = useRestaurant();
+  const { restaurants, setCurrentRestaurant } = useRestaurant();
   const { cart, orders, addToCart, clearCart } = useOrders();
   const { usual, vipTier, currentStreakDays } = useCustomerExperience();
   const { isFeatureEnabled } = useFeaturePermission();
@@ -43,7 +43,7 @@ export default function CustomerMarketplaceHome() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'cart' | 'orders' | 'profile'>('home');
 
-  const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const activeRestaurants = useMemo(() => {
     return restaurants.filter((r) => {
@@ -61,36 +61,50 @@ export default function CustomerMarketplaceHome() {
     });
   }, [restaurants, search, selectedCategory]);
 
+  const featuredRestaurant = restaurants.find((r) => r.slug === 'common-ground') || restaurants[0];
+
   const handleSelectRestaurant = (restaurant: Restaurant) => {
     setCurrentRestaurant(restaurant);
     router.push('/menu' as never);
   };
 
+  const handleReorderUsual = () => {
+    if (!usual || usual.items.length === 0) return;
+    clearCart();
+    usual.items.forEach((item) => addToCart(item.product, item.quantity));
+    router.push('/cart');
+  };
+
   return (
     <Screen>
-      {/* 1. Location & Profile Header */}
+      {/* 1. Premium Customer Header & Location Selector */}
       <View style={s.topHeader}>
         <View style={s.locationWrap}>
           <View style={s.pinCircle}>
             <Ionicons name="location" size={14} color={colors.caramel} />
           </View>
           <View>
-            <Text style={s.pickupLabel}>PICKUP LOCATION</Text>
+            <Text style={s.pickupLabel}>CLICK & COLLECT LOCATION</Text>
             <Text style={s.locationText}>Auckland Central, NZ ▾</Text>
           </View>
         </View>
 
-        <Pressable style={s.adminBtn} onPress={() => router.push('/admin')}>
-          <Ionicons name="shield-outline" size={18} color={colors.espresso} />
+        <Pressable style={s.cartPill} onPress={() => router.push('/cart')}>
+          <Ionicons name="bag-handle" size={17} color={colors.white} />
+          {cartCount > 0 && (
+            <View style={s.cartBadge}>
+              <Text style={s.cartBadgeText}>{cartCount}</Text>
+            </View>
+          )}
         </Pressable>
       </View>
 
-      {/* 2. Global Search Bar */}
+      {/* 2. Global Customer Search Bar */}
       <View style={s.searchBar}>
-        <Ionicons name="search-outline" size={18} color={colors.muted} />
+        <Ionicons name="search-outline" size={18} color={colors.muted} style={{ marginRight: 8 }} />
         <TextInput
           style={s.searchInput}
-          placeholder="Search cafes, coffee, pasta, bakery…"
+          placeholder="Search cafes, specialty coffee, lunch, bakery…"
           placeholderTextColor={colors.muted}
           value={search}
           onChangeText={setSearch}
@@ -102,168 +116,188 @@ export default function CustomerMarketplaceHome() {
         )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.contentContainer}>
-        {/* 3. Food Category Pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.categoryScroll}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        {/* 3. Premium Featured Discovery Hero */}
+        {featuredRestaurant && !search && (
           <Pressable
-            style={[s.catPill, !selectedCategory && s.catPillActive]}
-            onPress={() => setSelectedCategory(null)}
+            style={s.heroCard}
+            onPress={() => handleSelectRestaurant(featuredRestaurant)}
           >
-            <Ionicons
-              name="sparkles-outline"
-              size={14}
-              color={!selectedCategory ? colors.white : colors.espresso}
-            />
-            <Text style={[s.catPillText, !selectedCategory && s.catPillTextActive]}>All</Text>
-          </Pressable>
-          {CATEGORIES.map((cat) => (
-            <Pressable
-              key={cat.id}
-              style={[s.catPill, selectedCategory === cat.cuisine && s.catPillActive]}
-              onPress={() =>
-                setSelectedCategory(selectedCategory === cat.cuisine ? null : cat.cuisine)
-              }
-            >
-              <Ionicons
-                name={cat.icon}
-                size={14}
-                color={selectedCategory === cat.cuisine ? colors.white : colors.espresso}
-              />
-              <Text style={[s.catPillText, selectedCategory === cat.cuisine && s.catPillTextActive]}>
-                {cat.name}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {/* 4. VIP Streak & Rewards Banner */}
-        {isFeatureEnabled('loyalty_rewards') && (
-          <Pressable style={s.vipBanner} onPress={() => router.push('/rewards')}>
-            <View style={{ flex: 1 }}>
-              <View style={s.vipTagRow}>
-                <Text style={s.vipBadgeText}>{vipTier.toUpperCase()} VIP MEMBER</Text>
-                {currentStreakDays > 1 && (
-                  <Text style={s.streakBadgeText}>🔥 {currentStreakDays}-DAY STREAK</Text>
-                )}
-              </View>
-              <Text style={s.vipTitle}>Earn free coffees & unlock VIP deals</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.white} />
-          </Pressable>
-        )}
-
-        {/* 5. My Usual Quick Reorder (1-Tap) */}
-        {isFeatureEnabled('my_usual') && usual && usual.items && usual.items.length > 0 && (
-          <Card style={s.usualCard}>
-            <View style={s.usualHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="flash" size={16} color={colors.caramel} />
-                <Text style={s.usualEyebrow}>YOUR DAILY USUAL</Text>
-              </View>
-              <Text style={s.usualPrice}>
-                {money(usual.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0))}
-              </Text>
-            </View>
-            <Text style={s.usualItems}>
-              {usual.items.map((i) => `${i.quantity}x ${i.product.name}`).join(' + ')}
-            </Text>
-            <Pressable
-              style={s.reorderBtn}
-              onPress={() => {
-                clearCart();
-                usual.items.forEach((item) => {
-                  addToCart(item.product, item.quantity, item.notes, item.customisations);
-                });
-                router.push('/cart');
+            <Image
+              source={{
+                uri:
+                  featuredRestaurant.logoUrl ||
+                  'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=80',
               }}
-            >
-              <Text style={s.reorderBtnText}>1-Tap Reorder to Cart →</Text>
-            </Pressable>
-          </Card>
+              style={s.heroImage}
+            />
+            <View style={s.heroOverlay}>
+              <View style={s.featuredDealBadge}>
+                <Ionicons name="sparkles" size={11} color={colors.espresso} />
+                <Text style={s.featuredDealText}>FEATURED SPECIALTY ROAST</Text>
+              </View>
+              <Text style={s.heroTitle}>{featuredRestaurant.name}</Text>
+              <Text style={s.heroSubtitle}>{featuredRestaurant.description}</Text>
+
+              <View style={s.heroMetaRow}>
+                <View style={s.metaPill}>
+                  <Ionicons name="star" size={11} color="#FFB800" />
+                  <Text style={s.metaPillText}>4.9 (180+)</Text>
+                </View>
+                <View style={s.metaPill}>
+                  <Ionicons name="time-outline" size={11} color={colors.white} />
+                  <Text style={s.metaPillText}>Ready in 10-15m</Text>
+                </View>
+                <View style={[s.metaPill, { backgroundColor: colors.caramel }]}>
+                  <Text style={[s.metaPillText, { fontWeight: '900' }]}>Order Ahead →</Text>
+                </View>
+              </View>
+            </View>
+          </Pressable>
         )}
 
-        {/* 6. Popular Cafes & Restaurants Section */}
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>Featured Cafes & Dining</Text>
-          <Text style={s.sectionSubtitle}>
-            {activeRestaurants.length} venue{activeRestaurants.length === 1 ? '' : 's'} near you
-          </Text>
+        {/* 4. One-Tap My Usual Order (If Enabled) */}
+        {isFeatureEnabled('my_usual') && usual && !search && (
+          <Pressable style={s.usualCard} onPress={handleReorderUsual}>
+            <View style={s.usualIconCircle}>
+              <Ionicons name="heart" size={18} color={colors.caramel} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={s.usualHeaderRow}>
+                <Text style={s.usualTag}>MY USUAL REORDER</Text>
+                <Text style={s.usualPrice}>
+                  {money(usual.items.reduce((s, i) => s + i.product.price * i.quantity, 0))}
+                </Text>
+              </View>
+              <Text style={s.usualName}>{usual.name || usual.items[0]?.product.name}</Text>
+              <Text style={s.usualDesc}>1-tap reorder ready in 10 mins</Text>
+            </View>
+            <View style={s.reorderBtn}>
+              <Ionicons name="flash" size={13} color={colors.white} />
+              <Text style={s.reorderBtnText}>Reorder</Text>
+            </View>
+          </Pressable>
+        )}
+
+        {/* 5. Cuisine Categories Carousel */}
+        <View style={s.sectionHeaderRow}>
+          <Text style={s.sectionTitle}>Explore Categories</Text>
+          {selectedCategory && (
+            <Pressable onPress={() => setSelectedCategory(null)}>
+              <Text style={s.clearCategoryText}>Show All</Text>
+            </Pressable>
+          )}
         </View>
 
-        {activeRestaurants.map((rest) => {
-          const isPaused = rest.is_orders_paused;
-          return (
-            <Pressable
-              key={rest.id}
-              style={s.restCardWrap}
-              onPress={() => handleSelectRestaurant(rest)}
-            >
-              <Card style={s.restaurantCard}>
-                <View style={s.restHeaderRow}>
-                  <View style={s.logoCircle}>
-                    <Ionicons
-                      name={rest.slug.includes('trattoria') ? 'restaurant' : 'cafe'}
-                      size={20}
-                      color={colors.espresso}
-                    />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <View style={s.titleRatingRow}>
-                      <Text style={s.restName}>{rest.name}</Text>
-                      <View style={s.ratingBadge}>
-                        <Ionicons name="star" size={11} color="#F4B400" />
-                        <Text style={s.ratingText}>{(rest.rating || 4.9).toFixed(1)}</Text>
-                      </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.categoriesScroll}>
+          {CATEGORIES.map((cat) => {
+            const isSelected = selectedCategory === cat.tag;
+            return (
+              <Pressable
+                key={cat.id}
+                style={[s.catCard, isSelected && s.catCardActive]}
+                onPress={() => setSelectedCategory(isSelected ? null : cat.tag)}
+              >
+                <View style={[s.catIconWrap, isSelected && s.catIconWrapActive]}>
+                  <Ionicons
+                    name={cat.icon}
+                    size={20}
+                    color={isSelected ? colors.white : colors.caramel}
+                  />
+                </View>
+                <Text style={[s.catName, isSelected && s.catNameActive]}>{cat.name}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* 6. Popular & Nearby Restaurants */}
+        <View style={s.sectionHeaderRow}>
+          <Text style={s.sectionTitle}>Popular Today & Nearby</Text>
+          <Text style={s.sectionCount}>{activeRestaurants.length} places</Text>
+        </View>
+
+        {activeRestaurants.length === 0 ? (
+          <View style={s.emptyState}>
+            <Ionicons name="restaurant-outline" size={44} color={colors.muted} />
+            <Text style={s.emptyTitle}>No matching restaurants found</Text>
+            <Text style={s.emptySub}>Try searching for different terms or reset your filters.</Text>
+          </View>
+        ) : (
+          <View style={s.restaurantList}>
+            {activeRestaurants.map((restaurant) => (
+              <Pressable
+                key={restaurant.id}
+                style={s.restaurantCard}
+                onPress={() => handleSelectRestaurant(restaurant)}
+              >
+                <Image
+                  source={{
+                    uri:
+                      restaurant.logoUrl ||
+                      'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=600&q=80',
+                  }}
+                  style={s.restaurantThumb}
+                />
+
+                <View style={s.restaurantBody}>
+                  <View style={s.restNameRow}>
+                    <Text style={s.restaurantName}>{restaurant.name}</Text>
+                    <View style={s.ratingBadge}>
+                      <Ionicons name="star" size={11} color="#FFB800" />
+                      <Text style={s.ratingText}>4.8</Text>
                     </View>
-                    <Text style={s.cuisineText}>
-                      {(rest.cuisineTypes || ['Specialty Dining']).join(' • ')}
-                    </Text>
+                  </View>
+
+                  <Text style={s.restaurantCuisine} numberOfLines={1}>
+                    {restaurant.cuisineTypes?.join(' · ') || 'Artisan Coffee & Food'} · 0.3 km
+                  </Text>
+
+                  <View style={s.restaurantFooter}>
+                    <View style={s.etaBadge}>
+                      <Ionicons name="flash" size={11} color="#2D7D46" />
+                      <Text style={s.etaText}>Ready in 10–15 min</Text>
+                    </View>
+
+                    <View style={s.collectPill}>
+                      <Text style={s.collectPillText}>Click & Collect</Text>
+                    </View>
                   </View>
                 </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
-                {/* Status & Timing Row */}
-                <View style={s.timingRow}>
-                  <View style={s.timingItem}>
-                    <Ionicons name="time-outline" size={13} color={colors.muted} />
-                    <Text style={s.timingText}>
-                      {rest.averagePrepMinutes + (rest.rush_wait_extra_minutes || 0)} mins prep
-                    </Text>
-                  </View>
-                  <View style={s.timingItem}>
-                    <Ionicons name="navigate-outline" size={13} color={colors.muted} />
-                    <Text style={s.timingText}>{rest.distance_km || 0.4} km away</Text>
-                  </View>
-                  <View style={[s.statusPill, isPaused && s.statusPillPaused]}>
-                    <Text style={[s.statusPillText, isPaused && { color: colors.danger }]}>
-                      {isPaused ? 'ORDERS PAUSED' : 'OPEN NOW'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Deal Tag */}
-                {!!rest.deals_tag && (
-                  <View style={s.dealRow}>
-                    <Ionicons name="pricetag" size={12} color={colors.caramel} />
-                    <Text style={s.dealText}>{rest.deals_tag}</Text>
-                  </View>
-                )}
-
-                {/* View Menu CTA */}
-                <View style={s.actionRow}>
-                  <Text style={s.viewMenuLink}>View Menu & Order Ahead →</Text>
-                </View>
-              </Card>
-            </Pressable>
-          );
-        })}
+        {/* 7. Loyalty Rewards & Passes Teaser */}
+        {isFeatureEnabled('loyalty_rewards') && (
+          <Card style={s.loyaltyTeaserCard}>
+            <View style={s.loyaltyRow}>
+              <View style={s.stampIconCircle}>
+                <Ionicons name="gift" size={20} color={colors.caramel} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.loyaltyTeaserTitle}>Digital Stamp Card</Text>
+                <Text style={s.loyaltyTeaserSub}>
+                  {vipTier ? `${vipTier} Member · ` : ''}Earn rewards on every handcrafted coffee
+                </Text>
+              </View>
+              <Pressable style={s.viewRewardsBtn} onPress={() => router.push('/rewards')}>
+                <Text style={s.viewRewardsText}>View Passes →</Text>
+              </Pressable>
+            </View>
+          </Card>
+        )}
       </ScrollView>
 
-      {/* 7. Bottom Navigation Bar */}
-      <View style={s.bottomNav}>
+      {/* 8. Modern 5-Tab Customer Bottom Navigation */}
+      <View style={s.bottomNavBar}>
         <Pressable
-          style={s.navTab}
+          style={s.navItem}
           onPress={() => {
             setActiveTab('home');
+            setSearch('');
+            setSelectedCategory(null);
           }}
         >
           <Ionicons
@@ -271,58 +305,74 @@ export default function CustomerMarketplaceHome() {
             size={22}
             color={activeTab === 'home' ? colors.espresso : colors.muted}
           />
-          <Text style={[s.navTabText, activeTab === 'home' && s.navTabTextActive]}>Home</Text>
+          <Text style={[s.navLabel, activeTab === 'home' && s.navLabelActive]}>Home</Text>
         </Pressable>
 
         <Pressable
-          style={s.navTab}
+          style={s.navItem}
           onPress={() => {
             setActiveTab('search');
             router.push('/restaurants');
           }}
         >
-          <Ionicons name="search-outline" size={22} color={colors.muted} />
-          <Text style={s.navTabText}>Search</Text>
+          <Ionicons
+            name={activeTab === 'search' ? 'search' : 'search-outline'}
+            size={22}
+            color={activeTab === 'search' ? colors.espresso : colors.muted}
+          />
+          <Text style={[s.navLabel, activeTab === 'search' && s.navLabelActive]}>Explore</Text>
         </Pressable>
 
         <Pressable
-          style={s.navTab}
+          style={s.navItem}
           onPress={() => {
             setActiveTab('cart');
             router.push('/cart');
           }}
         >
-          <View style={s.cartIconWrap}>
-            <Ionicons name="bag-handle-outline" size={22} color={colors.muted} />
-            {count > 0 && (
-              <View style={s.cartBadge}>
-                <Text style={s.cartBadgeText}>{count}</Text>
+          <View>
+            <Ionicons
+              name={activeTab === 'cart' ? 'bag-handle' : 'bag-handle-outline'}
+              size={22}
+              color={activeTab === 'cart' ? colors.espresso : colors.muted}
+            />
+            {cartCount > 0 && (
+              <View style={s.navCartDot}>
+                <Text style={s.navCartDotText}>{cartCount}</Text>
               </View>
             )}
           </View>
-          <Text style={s.navTabText}>Cart</Text>
+          <Text style={[s.navLabel, activeTab === 'cart' && s.navLabelActive]}>Cart</Text>
         </Pressable>
 
         <Pressable
-          style={s.navTab}
+          style={s.navItem}
           onPress={() => {
             setActiveTab('orders');
             router.push('/orders');
           }}
         >
-          <Ionicons name="receipt-outline" size={22} color={colors.muted} />
-          <Text style={s.navTabText}>Orders</Text>
+          <Ionicons
+            name={activeTab === 'orders' ? 'receipt' : 'receipt-outline'}
+            size={22}
+            color={activeTab === 'orders' ? colors.espresso : colors.muted}
+          />
+          <Text style={[s.navLabel, activeTab === 'orders' && s.navLabelActive]}>Orders</Text>
         </Pressable>
 
         <Pressable
-          style={s.navTab}
+          style={s.navItem}
           onPress={() => {
             setActiveTab('profile');
             router.push('/rewards');
           }}
         >
-          <Ionicons name="person-outline" size={22} color={colors.muted} />
-          <Text style={s.navTabText}>Rewards</Text>
+          <Ionicons
+            name={activeTab === 'profile' ? 'person' : 'person-outline'}
+            size={22}
+            color={activeTab === 'profile' ? colors.espresso : colors.muted}
+          />
+          <Text style={[s.navLabel, activeTab === 'profile' && s.navLabelActive]}>Loyalty</Text>
         </Pressable>
       </View>
     </Screen>
@@ -330,96 +380,181 @@ export default function CustomerMarketplaceHome() {
 }
 
 const s = StyleSheet.create({
+  content: { paddingHorizontal: 16, paddingBottom: 90 },
   topHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingTop: 4,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
-  locationWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  locationWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pinCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.cream,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pickupLabel: { fontSize: 9, fontWeight: '800', color: colors.caramel, letterSpacing: 0.8 },
-  locationText: { fontSize: 14, fontWeight: '900', color: colors.espresso },
-  adminBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
+  locationText: { fontSize: 14, fontWeight: '800', color: colors.espresso },
+  cartPill: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.espresso,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cartBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.caramel,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  cartBadgeText: { color: colors.white, fontSize: 10, fontWeight: '900' },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderRadius: 14,
-    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    paddingHorizontal: 14,
     height: 46,
+    borderRadius: 23,
     borderWidth: 1,
     borderColor: colors.line,
-    marginBottom: 12,
   },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 13, color: colors.ink },
-  contentContainer: { paddingBottom: 90 },
-  categoryScroll: { flexDirection: 'row', marginBottom: 14 },
-  catPill: {
+  searchInput: { flex: 1, fontSize: 13, color: colors.ink },
+  heroCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    height: 190,
+    marginBottom: 16,
+    backgroundColor: colors.espresso,
+  },
+  heroImage: { width: '100%', height: '100%', opacity: 0.65 },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    padding: 16,
+    justifyContent: 'flex-end',
+  },
+  featuredDealBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    gap: 4,
     backgroundColor: colors.cream,
-    marginRight: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 6,
   },
-  catPillActive: { backgroundColor: colors.espresso },
-  catPillText: { fontSize: 12, fontWeight: '800', color: colors.espresso },
-  catPillTextActive: { color: colors.white },
-  vipBanner: {
+  featuredDealText: { fontSize: 9, fontWeight: '900', color: colors.espresso, letterSpacing: 0.5 },
+  heroTitle: { fontSize: 22, fontWeight: '900', color: colors.white },
+  heroSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2, marginBottom: 10 },
+  heroMetaRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#335943',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
-  vipTagRow: { flexDirection: 'row', gap: 8, marginBottom: 2 },
-  vipBadgeText: { fontSize: 9, fontWeight: '900', color: '#E8C68D', letterSpacing: 0.8 },
-  streakBadgeText: { fontSize: 9, fontWeight: '900', color: '#FFD166' },
-  vipTitle: { fontSize: 13, fontWeight: '800', color: colors.white },
-  usualCard: { padding: 12, marginBottom: 14 },
-  usualHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  usualEyebrow: { fontSize: 10, fontWeight: '800', color: colors.caramel, letterSpacing: 0.8 },
-  usualPrice: { fontSize: 13, fontWeight: '900', color: colors.espresso },
-  usualItems: { fontSize: 13, fontWeight: '700', color: colors.ink, marginBottom: 8 },
-  reorderBtn: { backgroundColor: colors.espresso, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  reorderBtnText: { color: colors.white, fontSize: 12, fontWeight: '800' },
-  sectionHeader: { marginBottom: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: '900', color: colors.ink },
-  sectionSubtitle: { fontSize: 12, color: colors.muted, marginTop: 1 },
-  restCardWrap: { marginBottom: 14 },
-  restaurantCard: { padding: 14 },
-  restHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  logoCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  metaPillText: { fontSize: 11, fontWeight: '700', color: colors.white },
+  usualCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFF9F3',
+    borderWidth: 1,
+    borderColor: '#FFE3D0',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  usualIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.cream,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleRatingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  restName: { fontSize: 16, fontWeight: '900', color: colors.ink },
+  usualHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  usualTag: { fontSize: 9, fontWeight: '900', color: colors.caramel, letterSpacing: 0.6 },
+  usualPrice: { fontSize: 13, fontWeight: '800', color: colors.espresso },
+  usualName: { fontSize: 14, fontWeight: '800', color: colors.ink, marginTop: 1 },
+  usualDesc: { fontSize: 11, color: colors.muted },
+  reorderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.espresso,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  reorderBtnText: { color: colors.white, fontSize: 11, fontWeight: '800' },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.espresso },
+  sectionCount: { fontSize: 12, color: colors.muted },
+  clearCategoryText: { fontSize: 12, fontWeight: '700', color: colors.caramel },
+  categoriesScroll: { flexDirection: 'row', marginBottom: 18 },
+  catCard: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginRight: 8,
+    minWidth: 80,
+  },
+  catCardActive: { backgroundColor: colors.espresso, borderColor: colors.espresso },
+  catIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  catIconWrapActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
+  catName: { fontSize: 11, fontWeight: '700', color: colors.espresso, textAlign: 'center' },
+  catNameActive: { color: colors.white },
+  restaurantList: { gap: 12, marginBottom: 18 },
+  restaurantCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  restaurantThumb: { width: 100, height: 100 },
+  restaurantBody: { flex: 1, padding: 12, justifyContent: 'space-between' },
+  restNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  restaurantName: { fontSize: 15, fontWeight: '800', color: colors.espresso },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -430,53 +565,54 @@ const s = StyleSheet.create({
     borderRadius: 6,
   },
   ratingText: { fontSize: 11, fontWeight: '800', color: colors.espresso },
-  cuisineText: { fontSize: 11, color: colors.muted, marginTop: 2 },
-  timingRow: {
+  restaurantCuisine: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  restaurantFooter: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    paddingTop: 8,
-    marginBottom: 8,
+    marginTop: 6,
   },
-  timingItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  timingText: { fontSize: 11, color: colors.muted },
-  statusPill: { marginLeft: 'auto', backgroundColor: '#E6F4EA', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
-  statusPillPaused: { backgroundColor: '#FDE8E8' },
-  statusPillText: { fontSize: 9, fontWeight: '800', color: colors.green },
-  dealRow: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFF8EB', padding: 6, borderRadius: 6, marginBottom: 8 },
-  dealText: { fontSize: 11, fontWeight: '800', color: colors.espresso },
-  actionRow: { borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 8, alignItems: 'flex-end' },
-  viewMenuLink: { color: colors.coffee, fontWeight: '800', fontSize: 12 },
-  bottomNav: {
+  etaBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  etaText: { fontSize: 11, fontWeight: '700', color: '#2D7D46' },
+  collectPill: { backgroundColor: colors.cream, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  collectPillText: { fontSize: 10, fontWeight: '800', color: colors.caramel },
+  loyaltyTeaserCard: { backgroundColor: colors.white, borderRadius: 16, padding: 14, marginBottom: 20 },
+  loyaltyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stampIconCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' },
+  loyaltyTeaserTitle: { fontSize: 13, fontWeight: '800', color: colors.espresso },
+  loyaltyTeaserSub: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  viewRewardsBtn: { backgroundColor: colors.cream, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  viewRewardsText: { fontSize: 11, fontWeight: '800', color: colors.espresso },
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: colors.espresso, marginTop: 10 },
+  emptySub: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 4 },
+  bottomNavBar: {
     position: 'absolute',
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    height: 62,
+    flexDirection: 'row',
     backgroundColor: colors.white,
+    paddingVertical: 8,
+    paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: colors.line,
-    flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingBottom: 4,
+    elevation: 8,
   },
-  navTab: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  navTabText: { fontSize: 10, fontWeight: '700', color: colors.muted, marginTop: 2 },
-  navTabTextActive: { color: colors.espresso, fontWeight: '800' },
-  cartIconWrap: { position: 'relative' },
-  cartBadge: {
+  navItem: { alignItems: 'center', gap: 2 },
+  navLabel: { fontSize: 10, fontWeight: '700', color: colors.muted },
+  navLabelActive: { color: colors.espresso, fontWeight: '800' },
+  navCartDot: {
     position: 'absolute',
-    top: -4,
-    right: -8,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -2,
+    right: -6,
     backgroundColor: colors.caramel,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cartBadgeText: { color: colors.white, fontSize: 9, fontWeight: '900' },
+  navCartDotText: { color: colors.white, fontSize: 8, fontWeight: '900' },
 });

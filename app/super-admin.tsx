@@ -18,8 +18,17 @@ import { useAdminAuth } from '@/src/context/AdminAuthContext';
 import { useOrders } from '@/src/context/OrderContext';
 import { money } from '@/src/data/products';
 import { colors } from '@/src/theme';
+import { RoleGate } from '@/src/components/RoleGate';
 
 export default function SuperAdminScreen() {
+  return (
+    <RoleGate allowedRoles={['super_admin']} roleTitle="Super Admin">
+      <SuperAdminContent />
+    </RoleGate>
+  );
+}
+
+function SuperAdminContent() {
   const auth = useAdminAuth();
   const { orders } = useOrders();
   const {

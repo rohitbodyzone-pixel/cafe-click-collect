@@ -20,7 +20,7 @@ import {
 } from '@/src/services/features/featureManager';
 import { colors } from '@/src/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { AdminGate } from '@/src/components/AdminGate';
+import { RoleGate } from '@/src/components/RoleGate';
 
 const CATEGORIES: { label: string; value: FeatureCategory | 'all'; icon: string }[] = [
   { label: 'All', value: 'all', icon: 'grid-outline' },
@@ -32,6 +32,14 @@ const CATEGORIES: { label: string; value: FeatureCategory | 'all'; icon: string 
 ];
 
 export default function SuperAdminFeaturesScreen() {
+  return (
+    <RoleGate allowedRoles={['super_admin']} roleTitle="Super Admin Features">
+      <SuperAdminFeaturesContent />
+    </RoleGate>
+  );
+}
+
+function SuperAdminFeaturesContent() {
   const { restaurants } = useRestaurant();
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<FeatureCategory | 'all'>('all');
@@ -115,9 +123,8 @@ export default function SuperAdminFeaturesScreen() {
   const effectiveCount = PLATFORM_FEATURES.filter((f) => featureStates[f.key]?.effective ?? true).length;
 
   return (
-    <AdminGate>
-      <Screen>
-        <Header title="Super Admin Features" back />
+    <Screen>
+      <Header title="Super Admin Features" back />
         <ScrollView style={s.container} contentContainerStyle={s.content}>
           {/* Restaurant Selector Bar */}
           <Card style={s.tenantCard}>
@@ -302,7 +309,6 @@ export default function SuperAdminFeaturesScreen() {
           )}
         </ScrollView>
       </Screen>
-    </AdminGate>
   );
 }
 

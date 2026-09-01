@@ -5,8 +5,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Header, Screen } from '@/src/components/UI';
 import { usePlatformEconomics } from '@/src/context/PlatformEconomicsContext';
 import { colors } from '@/src/theme';
+import { RoleGate } from '@/src/components/RoleGate';
 
 export default function SuperAdminBillingScreen() {
+  return (
+    <RoleGate allowedRoles={['super_admin']} roleTitle="Platform Billing & Economics">
+      <SuperAdminBillingContent />
+    </RoleGate>
+  );
+}
+
+function SuperAdminBillingContent() {
   const {
     platformEconomics,
     tenantFeeStructures,
