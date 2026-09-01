@@ -8,6 +8,7 @@ import { useOrders } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useProducts } from '@/src/context/ProductContext';
 import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
+import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
 import { RewardsSummary } from '@/src/components/RewardsSummary';
 import { colors } from '@/src/theme';
 
@@ -25,12 +26,13 @@ export default function Cart() {
     cartRestaurantName,
   } = useOrders();
 
+  const { isFeatureEnabled } = useFeaturePermission();
   const [savedUsual, setSavedUsual] = useState(false);
 
   const restaurantName = cartRestaurantName || currentRestaurant.name;
   const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
 
-  const suggestedUpsell = getSuggestedUpsell(cart, products);
+  const suggestedUpsell = isFeatureEnabled('combo_suggestions') ? getSuggestedUpsell(cart, products) : null;
 
   const handleAddUpsell = () => {
     if (!suggestedUpsell) return;

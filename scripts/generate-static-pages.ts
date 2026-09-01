@@ -26,6 +26,7 @@ const routes = [
   'passes',
   'menu',
   'admin',
+  'admin-features',
   'admin-kitchen',
   'admin-tables',
   'admin-table-qr',

@@ -113,9 +113,8 @@ async function runTests() {
     const { data, error } = await supabase.rpc('get_restaurant_effective_features', {
       p_restaurant_id: COMMON_GROUND_ID,
     });
-    if (error) throw error;
-    if (!data || typeof data !== 'object') throw new Error('Expected JSON object of feature permissions');
-    if (data.click_and_collect !== true) throw new Error('Expected click_and_collect to be true');
+    const isEffective = typeof data.click_and_collect === 'object' ? data.click_and_collect.effective : data.click_and_collect;
+    if (isEffective !== true) throw new Error('Expected click_and_collect to be effective: true');
   });
 
   // 5. Test Rush / Busy Mode Controls (Order Pause + Wait Time Booster)

@@ -37,6 +37,7 @@ const AdminLink = ({
   title: string;
   text: string;
   route:
+    | "/admin-features"
     | "/admin-payouts"
     | "/admin-growth"
     | "/admin-ai"
@@ -287,6 +288,12 @@ export default function Admin() {
         )}
 
         {/* Quick Launch Cards (Available in Simple & Advanced Mode) */}
+        <AdminLink
+          icon="options-outline"
+          title="Restaurant Feature Settings"
+          text="Enable or disable 58 optional capabilities (Ordering, Operations, Marketing, AI, Staff)"
+          route="/admin-features"
+        />
         <AdminLink
           icon="speedometer-outline"
           title="Kitchen Display System (KDS)"

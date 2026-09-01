@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Screen, Header, Card, Button } from '@/src/components/UI';
-import { useRestaurant, Restaurant } from '@/src/context/RestaurantContext';
 import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
-import { FeatureCategory, FeatureDefinition, FeatureState, PLATFORM_FEATURES } from '@/src/services/features/types';
-import {
-  fetchRestaurantFeatureStates,
-  toggleFeaturePermission,
-  bulkToggleFeatureCategory,
-} from '@/src/services/features/featureManager';
+import { useRestaurant } from '@/src/context/RestaurantContext';
+import { FeatureCategory, PLATFORM_FEATURES } from '@/src/services/features/types';
 import { colors } from '@/src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { AdminGate } from '@/src/components/AdminGate';
@@ -31,76 +26,13 @@ const CATEGORIES: { label: string; value: FeatureCategory | 'all'; icon: string 
   { label: 'Staff', value: 'staff', icon: 'people-outline' },
 ];
 
-export default function SuperAdminFeaturesScreen() {
-  const { restaurants } = useRestaurant();
-  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+export default function OwnerFeaturesScreen() {
+  const { currentRestaurant } = useRestaurant();
+  const { getFeatureState, toggleOwnerFeature, bulkToggleCategory, loading } = useFeaturePermission();
   const [selectedCategory, setSelectedCategory] = useState<FeatureCategory | 'all'>('all');
   const [search, setSearch] = useState('');
-  const [featureStates, setFeatureStates] = useState<Record<string, FeatureState>>({});
-  const [loading, setLoading] = useState(false);
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-
-  useEffect(() => {
-    if (restaurants && restaurants.length > 0 && !selectedRestaurant) {
-      setSelectedRestaurant(restaurants[0]);
-    }
-  }, [restaurants, selectedRestaurant]);
-
-  useEffect(() => {
-    if (selectedRestaurant) {
-      loadFeaturesForRestaurant(selectedRestaurant.id);
-    }
-  }, [selectedRestaurant]);
-
-  const loadFeaturesForRestaurant = async (restId: string) => {
-    setLoading(true);
-    try {
-      const states = await fetchRestaurantFeatureStates(restId);
-      setFeatureStates(states);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggle = async (featureKey: string, currentSuperVal: boolean) => {
-    if (!selectedRestaurant) return;
-    setUpdatingKey(featureKey);
-    try {
-      await toggleFeaturePermission(selectedRestaurant.id, featureKey, !currentSuperVal, 'super_admin');
-      setFeatureStates((prev) => {
-        const current = prev[featureKey] || { superAdmin: true, owner: true, effective: true };
-        const newSuper = !currentSuperVal;
-        return {
-          ...prev,
-          [featureKey]: {
-            superAdmin: newSuper,
-            owner: current.owner,
-            effective: newSuper && current.owner,
-          },
-        };
-      });
-    } catch (e: any) {
-      alert(e.message || 'Could not update feature permission');
-    } finally {
-      setUpdatingKey(null);
-    }
-  };
-
-  const handleBulkToggle = async (category: FeatureCategory, enabled: boolean) => {
-    if (!selectedRestaurant) return;
-    setBulkBusy(true);
-    try {
-      await bulkToggleFeatureCategory(selectedRestaurant.id, category, enabled, 'super_admin');
-      await loadFeaturesForRestaurant(selectedRestaurant.id);
-    } catch (e: any) {
-      alert(e.message || 'Could not update category');
-    } finally {
-      setBulkBusy(false);
-    }
-  };
 
   const filteredFeatures = PLATFORM_FEATURES.filter((f) => {
     const matchesCategory = selectedCategory === 'all' || f.category === selectedCategory;
@@ -111,55 +43,62 @@ export default function SuperAdminFeaturesScreen() {
   });
 
   const totalCount = PLATFORM_FEATURES.length;
-  const superEnabledCount = PLATFORM_FEATURES.filter((f) => featureStates[f.key]?.superAdmin ?? true).length;
-  const effectiveCount = PLATFORM_FEATURES.filter((f) => featureStates[f.key]?.effective ?? true).length;
+  const activeCount = PLATFORM_FEATURES.filter((f) => getFeatureState(f.key).effective).length;
+  const superAdminDisabledCount = PLATFORM_FEATURES.filter((f) => !getFeatureState(f.key).superAdmin).length;
+
+  const handleToggle = async (featureKey: string, currentOwnerVal: boolean, superAdminVal: boolean) => {
+    if (!superAdminVal) {
+      alert('This feature has been disabled by the Platform Super Admin and cannot be activated by the restaurant owner.');
+      return;
+    }
+    setUpdatingKey(featureKey);
+    try {
+      await toggleOwnerFeature(currentRestaurant.id, featureKey, !currentOwnerVal);
+    } catch (e: any) {
+      alert(e.message || 'Could not update feature setting');
+    } finally {
+      setUpdatingKey(null);
+    }
+  };
+
+  const handleBulkToggle = async (category: FeatureCategory, enabled: boolean) => {
+    setBulkBusy(true);
+    try {
+      await bulkToggleCategory(currentRestaurant.id, category, enabled, 'owner');
+    } catch (e: any) {
+      alert(e.message || 'Could not perform bulk update');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   return (
     <AdminGate>
       <Screen>
-        <Header title="Super Admin Features" back />
+        <Header title="Restaurant Features" back />
         <ScrollView style={s.container} contentContainerStyle={s.content}>
-          {/* Restaurant Selector Bar */}
-          <Card style={s.tenantCard}>
-            <Text style={s.sectionTitle}>Select Restaurant Tenant:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tenantScroll}>
-              {restaurants.map((r) => (
-                <Pressable
-                  key={r.id}
-                  style={[s.tenantPill, selectedRestaurant?.id === r.id && s.tenantPillActive]}
-                  onPress={() => setSelectedRestaurant(r)}
-                >
-                  <Ionicons
-                    name="business"
-                    size={14}
-                    color={selectedRestaurant?.id === r.id ? colors.white : colors.espresso}
-                  />
-                  <Text
-                    style={[
-                      s.tenantPillText,
-                      selectedRestaurant?.id === r.id && s.tenantPillTextActive,
-                    ]}
-                  >
-                    {r.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-
-            <View style={s.summaryStatsRow}>
-              <View style={s.statBox}>
-                <Text style={s.statNum}>{totalCount}</Text>
-                <Text style={s.statLabel}>Total Catalog</Text>
+          {/* Header Summary */}
+          <Card style={s.summaryCard}>
+            <View style={s.summaryHeader}>
+              <View>
+                <Text style={s.restaurantName}>{currentRestaurant.name}</Text>
+                <Text style={s.subText}>Configure optional capabilities for your restaurant</Text>
               </View>
-              <View style={s.statBox}>
-                <Text style={[s.statNum, { color: colors.espresso }]}>{superEnabledCount}</Text>
-                <Text style={s.statLabel}>Platform Allowed</Text>
-              </View>
-              <View style={s.statBox}>
-                <Text style={[s.statNum, { color: '#2D7D46' }]}>{effectiveCount}</Text>
-                <Text style={s.statLabel}>Effective Active</Text>
+              <View style={s.badge}>
+                <Text style={s.badgeText}>
+                  {activeCount} / {totalCount} Active
+                </Text>
               </View>
             </View>
+
+            {superAdminDisabledCount > 0 && (
+              <View style={s.platformNotice}>
+                <Ionicons name="information-circle" size={16} color={colors.danger} />
+                <Text style={s.platformNoticeText}>
+                  {superAdminDisabledCount} feature{superAdminDisabledCount > 1 ? 's are' : ' is'} locked by Platform Super Admin.
+                </Text>
+              </View>
+            )}
           </Card>
 
           {/* Search Bar */}
@@ -202,41 +141,42 @@ export default function SuperAdminFeaturesScreen() {
           {/* Bulk Category Controls */}
           {selectedCategory !== 'all' && (
             <View style={s.bulkRow}>
-              <Text style={s.bulkTitle}>Category Master Actions:</Text>
+              <Text style={s.bulkTitle}>Category Quick Actions:</Text>
               <View style={s.bulkButtons}>
                 <Pressable
                   style={[s.bulkBtn, s.bulkBtnOn]}
                   disabled={bulkBusy}
                   onPress={() => handleBulkToggle(selectedCategory, true)}
                 >
-                  <Text style={s.bulkBtnTextOn}>Allow Category</Text>
+                  <Text style={s.bulkBtnTextOn}>Enable Allowed</Text>
                 </Pressable>
                 <Pressable
                   style={[s.bulkBtn, s.bulkBtnOff]}
                   disabled={bulkBusy}
                   onPress={() => handleBulkToggle(selectedCategory, false)}
                 >
-                  <Text style={s.bulkBtnTextOff}>Lock Category</Text>
+                  <Text style={s.bulkBtnTextOff}>Disable All</Text>
                 </Pressable>
               </View>
             </View>
           )}
 
-          {/* Feature List */}
+          {/* Features List */}
           {loading ? (
             <ActivityIndicator size="large" color={colors.espresso} style={{ marginTop: 40 }} />
           ) : (
             <View style={s.listContainer}>
               {filteredFeatures.map((f) => {
-                const state = featureStates[f.key] || { superAdmin: true, owner: true, effective: true };
+                const state = getFeatureState(f.key);
+                const isLocked = !state.superAdmin;
                 const isBusy = updatingKey === f.key;
 
                 return (
-                  <Card key={f.key} style={s.featureCard}>
+                  <Card key={f.key} style={[s.featureCard, isLocked && s.featureCardLocked]}>
                     <View style={s.featureHeader}>
                       <View style={{ flex: 1, paddingRight: 10 }}>
                         <View style={s.nameRow}>
-                          <Text style={s.featureName}>{f.name}</Text>
+                          <Text style={[s.featureName, isLocked && s.featureNameLocked]}>{f.name}</Text>
                           {f.isExternalPending && (
                             <View style={s.extBadge}>
                               <Text style={s.extBadgeText}>Adapter / Mock</Text>
@@ -251,8 +191,9 @@ export default function SuperAdminFeaturesScreen() {
                           <ActivityIndicator size="small" color={colors.espresso} />
                         ) : (
                           <Switch
-                            value={state.superAdmin}
-                            onValueChange={() => handleToggle(f.key, state.superAdmin)}
+                            value={state.owner && !isLocked}
+                            disabled={isLocked}
+                            onValueChange={() => handleToggle(f.key, state.owner, state.superAdmin)}
                             trackColor={{ false: colors.line, true: colors.caramel }}
                             thumbColor={colors.white}
                           />
@@ -260,40 +201,28 @@ export default function SuperAdminFeaturesScreen() {
                       </View>
                     </View>
 
-                    {/* Footer with category & Dual Level Status */}
+                    {/* Locked notice or status chip */}
                     <View style={s.featureFooter}>
                       <View style={s.categoryChip}>
                         <Text style={s.categoryChipText}>{f.category.toUpperCase()}</Text>
                       </View>
 
-                      <View style={s.dualStatusRow}>
-                        <View style={s.ownerChip}>
-                          <Text style={s.ownerChipText}>
-                            Owner: {state.owner ? 'ENABLED' : 'DISABLED'}
-                          </Text>
+                      {isLocked ? (
+                        <View style={s.lockedChip}>
+                          <Ionicons name="lock-closed" size={11} color={colors.danger} />
+                          <Text style={s.lockedChipText}>Disabled by Platform Admin</Text>
                         </View>
-
-                        <View
-                          style={[
-                            s.effectiveBadge,
-                            state.effective ? s.effectiveBadgeOn : s.effectiveBadgeOff,
-                          ]}
-                        >
-                          <Ionicons
-                            name={state.effective ? 'checkmark-circle' : 'close-circle'}
-                            size={11}
-                            color={state.effective ? '#2D7D46' : colors.danger}
-                          />
-                          <Text
-                            style={[
-                              s.effectiveBadgeText,
-                              state.effective ? s.effectiveBadgeTextOn : s.effectiveBadgeTextOff,
-                            ]}
-                          >
-                            {state.effective ? 'EFFECTIVE ACTIVE' : 'EFFECTIVE OFF'}
-                          </Text>
+                      ) : state.effective ? (
+                        <View style={s.activeChip}>
+                          <Ionicons name="checkmark-circle" size={11} color="#2D7D46" />
+                          <Text style={s.activeChipText}>Active & Working</Text>
                         </View>
-                      </View>
+                      ) : (
+                        <View style={s.pausedChip}>
+                          <Ionicons name="pause-circle" size={11} color={colors.muted} />
+                          <Text style={s.pausedChipText}>Disabled by Owner</Text>
+                        </View>
+                      )}
                     </View>
                   </Card>
                 );
@@ -309,32 +238,22 @@ export default function SuperAdminFeaturesScreen() {
 const s = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 60 },
-  tenantCard: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 14 },
-  sectionTitle: { fontSize: 12, fontWeight: '800', color: colors.espresso, marginBottom: 10, letterSpacing: 0.5 },
-  tenantScroll: { flexDirection: 'row', marginBottom: 14 },
-  tenantPill: {
+  summaryCard: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 14 },
+  summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  restaurantName: { fontSize: 18, fontWeight: '800', color: colors.espresso },
+  subText: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  badge: { backgroundColor: colors.cream, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  badgeText: { fontSize: 12, fontWeight: '800', color: colors.espresso },
+  platformNotice: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.cream,
-    marginRight: 8,
+    backgroundColor: '#FDE8E8',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 12,
   },
-  tenantPillActive: { backgroundColor: colors.espresso },
-  tenantPillText: { fontSize: 13, fontWeight: '700', color: colors.espresso },
-  tenantPillTextActive: { color: colors.white },
-  summaryStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-  },
-  statBox: { alignItems: 'center' },
-  statNum: { fontSize: 16, fontWeight: '900', color: colors.caramel },
-  statLabel: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  platformNoticeText: { fontSize: 12, color: colors.danger, fontWeight: '600' },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,9 +303,11 @@ const s = StyleSheet.create({
   bulkBtnTextOff: { fontSize: 11, fontWeight: '700', color: colors.muted },
   listContainer: { gap: 10 },
   featureCard: { backgroundColor: colors.white, borderRadius: 14, padding: 14 },
+  featureCardLocked: { backgroundColor: '#FDFBFB', borderColor: '#F3D6D6' },
   featureHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   featureName: { fontSize: 14, fontWeight: '800', color: colors.espresso },
+  featureNameLocked: { color: colors.muted },
   extBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   extBadgeText: { fontSize: 9, fontWeight: '700', color: '#1D4ED8' },
   featureDesc: { fontSize: 12, color: colors.muted, marginTop: 4, lineHeight: 16 },
@@ -402,13 +323,10 @@ const s = StyleSheet.create({
   },
   categoryChip: { backgroundColor: colors.cream, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   categoryChipText: { fontSize: 9, fontWeight: '800', color: colors.caramel },
-  dualStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ownerChip: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
-  ownerChipText: { fontSize: 9, fontWeight: '700', color: colors.muted },
-  effectiveBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  effectiveBadgeOn: { backgroundColor: '#E6F4EA' },
-  effectiveBadgeOff: { backgroundColor: '#FDE8E8' },
-  effectiveBadgeText: { fontSize: 9, fontWeight: '800' },
-  effectiveBadgeTextOn: { color: '#2D7D46' },
-  effectiveBadgeTextOff: { color: colors.danger },
+  lockedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FDE8E8', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  lockedChipText: { fontSize: 10, fontWeight: '700', color: colors.danger },
+  activeChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E6F4EA', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  activeChipText: { fontSize: 10, fontWeight: '700', color: '#2D7D46' },
+  pausedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  pausedChipText: { fontSize: 10, fontWeight: '700', color: colors.muted },
 });

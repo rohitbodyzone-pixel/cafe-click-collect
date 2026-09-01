@@ -1,81 +1,95 @@
 import { supabase } from '@/src/lib/supabase';
-import { PLATFORM_FEATURES, RestaurantFeaturePermission, FeatureCategory } from './types';
+import { FeatureCategory, FeatureState, PLATFORM_FEATURES } from './types';
 
-export class FeatureManager {
-  /**
-   * Loads all feature permissions for a restaurant from Supabase
-   */
-  static async getPermissions(restaurantId: string): Promise<Record<string, boolean>> {
-    if (!supabase) {
-      // Return defaults if offline
-      const defaults: Record<string, boolean> = {};
-      PLATFORM_FEATURES.forEach((f) => {
-        defaults[f.key] = f.defaultEnabled;
-      });
-      return defaults;
+export async function fetchRestaurantFeatureStates(
+  restaurantId: string,
+): Promise<Record<string, FeatureState>> {
+  if (!supabase) {
+    const defaults: Record<string, FeatureState> = {};
+    for (const f of PLATFORM_FEATURES) {
+      defaults[f.key] = { superAdmin: f.defaultEnabled, owner: f.defaultEnabled, effective: f.defaultEnabled };
+    }
+    return defaults;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('get_restaurant_effective_features', {
+      p_restaurant_id: restaurantId,
+    });
+
+    if (error) {
+      console.warn('Error loading effective features RPC:', error.message);
+      return fallbackFeatures();
     }
 
-    try {
-      const { data, error } = await supabase
-        .from('restaurant_feature_permissions')
-        .select('feature_key, is_enabled')
-        .eq('restaurant_id', restaurantId);
-
-      if (error) throw error;
-
-      const perms: Record<string, boolean> = {};
-      // Seed with platform defaults first
-      PLATFORM_FEATURES.forEach((f) => {
-        perms[f.key] = f.defaultEnabled;
-      });
-
-      if (data) {
-        data.forEach((row) => {
-          perms[row.feature_key] = row.is_enabled;
-        });
+    const result: Record<string, FeatureState> = {};
+    for (const f of PLATFORM_FEATURES) {
+      const raw = data?.[f.key];
+      if (raw) {
+        result[f.key] = {
+          superAdmin: raw.super_admin ?? true,
+          owner: raw.owner ?? true,
+          effective: (raw.super_admin ?? true) && (raw.owner ?? true),
+        };
+      } else {
+        result[f.key] = {
+          superAdmin: f.defaultEnabled,
+          owner: f.defaultEnabled,
+          effective: f.defaultEnabled,
+        };
       }
-      return perms;
-    } catch (e) {
-      console.warn('Error loading feature permissions:', e);
-      const defaults: Record<string, boolean> = {};
-      PLATFORM_FEATURES.forEach((f) => {
-        defaults[f.key] = f.defaultEnabled;
-      });
-      return defaults;
     }
+    return result;
+  } catch (err) {
+    console.error('Failed to fetch restaurant feature permissions:', err);
+    return fallbackFeatures();
   }
+}
 
-  /**
-   * Toggles a single feature permission for a restaurant (Super Admin)
-   */
-  static async toggleFeature(
-    restaurantId: string,
-    featureKey: string,
-    isEnabled: boolean,
-  ): Promise<void> {
-    if (!supabase) return;
-    const { error } = await supabase.rpc('toggle_restaurant_feature_permission', {
-      p_restaurant_id: restaurantId,
-      p_feature_key: featureKey,
-      p_enabled: isEnabled,
-    });
-    if (error) throw error;
-  }
+export async function toggleFeaturePermission(
+  restaurantId: string,
+  featureKey: string,
+  enabled: boolean,
+  level: 'super_admin' | 'owner' = 'super_admin',
+): Promise<void> {
+  if (!supabase) return;
 
-  /**
-   * Bulk toggles all features in a category for a restaurant (Super Admin)
-   */
-  static async bulkToggleCategory(
-    restaurantId: string,
-    category: FeatureCategory,
-    isEnabled: boolean,
-  ): Promise<void> {
-    if (!supabase) return;
-    const { error } = await supabase.rpc('bulk_toggle_restaurant_features', {
-      p_restaurant_id: restaurantId,
-      p_category: category,
-      p_enabled: isEnabled,
-    });
-    if (error) throw error;
+  const { error } = await supabase.rpc('toggle_restaurant_feature_permission', {
+    p_restaurant_id: restaurantId,
+    p_feature_key: featureKey,
+    p_enabled: enabled,
+    p_level: level,
+  });
+
+  if (error) {
+    throw new Error(error.message);
   }
+}
+
+export async function bulkToggleFeatureCategory(
+  restaurantId: string,
+  category: FeatureCategory,
+  enabled: boolean,
+  level: 'super_admin' | 'owner' = 'super_admin',
+): Promise<void> {
+  if (!supabase) return;
+
+  const { error } = await supabase.rpc('bulk_toggle_restaurant_features', {
+    p_restaurant_id: restaurantId,
+    p_category: category,
+    p_enabled: enabled,
+    p_level: level,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+function fallbackFeatures(): Record<string, FeatureState> {
+  const fallback: Record<string, FeatureState> = {};
+  for (const f of PLATFORM_FEATURES) {
+    fallback[f.key] = { superAdmin: f.defaultEnabled, owner: f.defaultEnabled, effective: f.defaultEnabled };
+  }
+  return fallback;
 }
