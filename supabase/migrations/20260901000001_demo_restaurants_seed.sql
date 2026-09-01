@@ -3,6 +3,16 @@
 
 begin;
 
+-- Remove rigid single-cafe category check to allow flexible multi-tenant categories
+alter table public.products drop constraint if exists products_category_check;
+
+-- Ensure loyalty_settings has multi-tenant primary key by restaurant_id
+alter table public.loyalty_settings drop constraint if exists loyalty_settings_id_check;
+alter table public.loyalty_settings drop constraint if exists loyalty_settings_pkey;
+alter table public.loyalty_settings alter column restaurant_id set not null;
+alter table public.loyalty_settings add primary key (restaurant_id);
+alter table public.loyalty_settings drop column if exists id;
+
 -- 1. Insert Restaurant B: Trattoria Bella
 insert into public.restaurants (
   id, name, slug, description, address, phone, email, timezone, currency,
@@ -37,10 +47,11 @@ values
   ('tb-macchiato', 'c0000000-0000-0000-0000-000000000002', 'Espresso Macchiato', 'Coffee', 480, 'Double shot espresso marked with velvety foam', '☕', false, 1),
   ('tb-margherita', 'c0000000-0000-0000-0000-000000000002', 'Margherita Pizza', 'Food', 2400, 'San Marzano tomatoes, fresh mozzarella, basil, EVOO', '🍕', false, 2),
   ('tb-tagliatelle', 'c0000000-0000-0000-0000-000000000002', 'Truffle Tagliatelle', 'Food', 2800, 'Handmade pasta, wild mushrooms, parmesan and black truffle sauce', '🍝', false, 3),
-  ('tb-tiramisu', 'c0000000-0000-0000-0000-000000000002', 'Classic Tiramisu', 'Bakery', 1400, 'Savoiardi soaked in espresso with mascarpone cream', '🍰', false, 4)
+  ('tb-tiramisu', 'c0000000-0000-0000-0000-000000000002', 'Classic Tiramisu', 'Food', 1400, 'Savoiardi soaked in espresso with mascarpone cream', '🍰', false, 4)
 on conflict (id) do update set
   restaurant_id = excluded.restaurant_id,
   name = excluded.name,
+  category = excluded.category,
   price_cents = excluded.price_cents,
   sold_out = excluded.sold_out;
 
