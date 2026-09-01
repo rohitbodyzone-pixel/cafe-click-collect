@@ -26,7 +26,8 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/cafe-click-collect"
     },
     "web": {
       "bundler": "metro",
