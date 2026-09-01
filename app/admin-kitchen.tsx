@@ -104,6 +104,14 @@ export default function AdminKitchenScreen() {
     }
   };
 
+  const toggleSound = () => {
+    setSoundEnabled((v) => {
+      const next = !v;
+      if (next) playChime();
+      return next;
+    });
+  };
+
   return (
     <Screen>
       <Header
@@ -111,7 +119,7 @@ export default function AdminKitchenScreen() {
         right={
           <Pressable
             style={s.soundToggle}
-            onPress={() => setSoundEnabled((v) => !v)}
+            onPress={toggleSound}
             accessibilityLabel="Toggle sound alerts"
           >
             <Ionicons
