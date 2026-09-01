@@ -35,6 +35,7 @@ const AdminLink = ({
   title: string;
   text: string;
   route:
+    | "/admin-analytics"
     | "/admin-kitchen"
     | "/admin-menu"
     | "/admin-pickup-settings"
@@ -160,6 +161,12 @@ export default function Admin() {
         />
       )}
 
+      <AdminLink
+        icon="stats-chart-outline"
+        title="Sales & Analytics"
+        text="Daily revenue, top-selling items, hourly distribution"
+        route="/admin-analytics"
+      />
       <AdminLink
         icon="speedometer-outline"
         title="Kitchen Display System (KDS)"

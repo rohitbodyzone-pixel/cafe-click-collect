@@ -28,6 +28,12 @@ create table if not exists public.restaurants (
   apple_pay_enabled boolean not null default true,
   google_pay_enabled boolean not null default true,
   is_active boolean not null default true,
+  plan text not null default 'starter' check (plan in ('starter', 'standard', 'premium')),
+  subscription_status text not null default 'active' check (subscription_status in ('trialing', 'active', 'past_due', 'canceled')),
+  trial_end timestamptz,
+  billing_customer_id text,
+  billing_subscription_id text,
+  feature_flags jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -34,6 +34,12 @@ export type Restaurant = {
   applePayEnabled: boolean;
   googlePayEnabled: boolean;
   isActive: boolean;
+  plan?: 'starter' | 'standard' | 'premium';
+  subscriptionStatus?: 'trialing' | 'active' | 'past_due' | 'canceled';
+  trialEnd?: string;
+  billingCustomerId?: string;
+  billingSubscriptionId?: string;
+  featureFlags?: Record<string, boolean>;
 };
 
 export const DEFAULT_RESTAURANT_ID = 'c0000000-0000-0000-0000-000000000001';
@@ -61,6 +67,9 @@ export const fallbackRestaurant: Restaurant = {
   applePayEnabled: true,
   googlePayEnabled: true,
   isActive: true,
+  plan: 'starter',
+  subscriptionStatus: 'active',
+  featureFlags: {},
 };
 
 type RestaurantRow = {
