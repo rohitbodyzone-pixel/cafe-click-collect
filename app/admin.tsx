@@ -35,6 +35,7 @@ const AdminLink = ({
   title: string;
   text: string;
   route:
+    | "/admin-payouts"
     | "/admin-growth"
     | "/admin-ai"
     | "/admin-operations"
@@ -164,6 +165,12 @@ export default function Admin() {
         />
       )}
 
+      <AdminLink
+        icon="wallet-outline"
+        title="Payouts & Settlement Ledger"
+        text="Gross sales, Stripe Connect transfers, app fees & direct bank payouts"
+        route="/admin-payouts"
+      />
       <AdminLink
         icon="megaphone-outline"
         title="Growth, Marketing & Concierge"
