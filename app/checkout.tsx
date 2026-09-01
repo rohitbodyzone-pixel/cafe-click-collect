@@ -18,6 +18,7 @@ type Session = {
 export default function Checkout() {
   const {
     cart,
+    cartRestaurantName,
     pickupTime,
     orderMode,
     table,
@@ -111,6 +112,7 @@ export default function Checkout() {
         </>
       )}
       <Card>
+        <Text style={styles.restaurantName}>{orderMode === 'table' ? `${table?.name} · ${cartRestaurantName || ''}` : `${pickupTime} · ${cartRestaurantName || ''}`}</Text>
         <Text style={styles.strong}>{isTable ? table?.name : pickupTime}</Text>
         {cart.map((item) => (
           <View key={item.cartKey} style={styles.item}>
@@ -228,7 +230,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   notes: { height: 80, paddingTop: 12 },
-  strong: { fontWeight: "800" },
+  restaurantName: {
+    color: colors.caramel,
+    fontWeight: "800",
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  strong: { fontWeight: "800", fontSize: 16, color: colors.espresso },
   item: { paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.line },
   row: {
     flexDirection: "row",

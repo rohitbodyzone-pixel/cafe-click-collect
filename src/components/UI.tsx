@@ -1,5 +1,5 @@
 import { PropsWithChildren, ReactNode } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, shadow } from '@/src/theme';
@@ -22,7 +22,7 @@ export function Button({ label, onPress, secondary = false, disabled = false, ic
   </Pressable>;
 }
 
-export function Card({ children, style }: PropsWithChildren<{ style?: ViewStyle }>) { return <View style={[styles.card, style]}>{children}</View>; }
+export function Card({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) { return <View style={[styles.card, style]}>{children}</View>; }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.cream },

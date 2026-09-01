@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Card, Header, Screen } from "@/src/components/UI";
 import { usePaymentSettings } from "@/src/context/PaymentSettingsContext";
+import { useRestaurant } from "@/src/context/RestaurantContext";
 import { colors } from "@/src/theme";
 
 function Toggle({
@@ -28,10 +29,13 @@ function Toggle({
     </Pressable>
   );
 }
+
 export default function AdminPayments() {
+  const { currentRestaurant } = useRestaurant();
   const settings = usePaymentSettings();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+
   const update = async (
     values: Parameters<typeof settings.updateSettings>[0],
   ) => {
@@ -48,14 +52,21 @@ export default function AdminPayments() {
       setBusy(false);
     }
   };
+
   return (
     <Screen>
       <Header title="Payment Settings" />
+
+      <View style={styles.banner}>
+        <Text style={styles.bannerText}>
+          Payment configuration for <Text style={styles.bold}>{currentRestaurant.name}</Text>
+        </Text>
+      </View>
+
       <Card>
         <Text style={styles.title}>Accepted payment methods</Text>
         <Text style={styles.help}>
-          Stripe online payments are currently in Sandbox mode. No live money
-          is charged until the cafe deliberately activates Stripe live mode.
+          Control which payment channels customers can use when ordering from {currentRestaurant.name}.
         </Text>
         <Toggle
           label="Card payment"
@@ -93,7 +104,22 @@ export default function AdminPayments() {
     </Screen>
   );
 }
+
 const styles = StyleSheet.create({
+  banner: {
+    backgroundColor: colors.cream,
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  bannerText: {
+    color: colors.ink,
+    fontSize: 13,
+  },
+  bold: {
+    fontWeight: '800',
+    color: colors.espresso,
+  },
   title: { fontSize: 18, fontWeight: "800", color: colors.ink },
   help: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 6 },
   row: {

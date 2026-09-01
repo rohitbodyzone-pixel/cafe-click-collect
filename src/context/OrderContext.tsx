@@ -74,6 +74,8 @@ export type Order = {
 
 type Store = {
   cart: CartItem[];
+  cartRestaurantId?: string;
+  cartRestaurantName?: string;
   pickupTime: string;
   pickupSlot?: string;
   orderMode: OrderMode;
@@ -239,6 +241,8 @@ export function OrderProvider({ children }: PropsWithChildren) {
   const { payAtCounterEnabled } = usePaymentSettings();
 
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartRestaurantId, setCartRestaurantId] = useState<string>();
+  const [cartRestaurantName, setCartRestaurantName] = useState<string>();
   const [pickupTime, setPickupTimeValue] = useState('');
   const [pickupSlot, setPickupSlot] = useState<string>();
   const [orderMode, setOrderModeValue] = useState<OrderMode>('pickup');
@@ -345,7 +349,9 @@ export function OrderProvider({ children }: PropsWithChildren) {
     quantity = 1,
     notes = '',
     customisations: SelectedCustomisation[] = [],
-  ) =>
+  ) => {
+    setCartRestaurantId(currentRestaurant.id);
+    setCartRestaurantName(currentRestaurant.name);
     setCart((current) => {
       const signature = customisations
         .map((item) => item.optionId)
@@ -367,6 +373,13 @@ export function OrderProvider({ children }: PropsWithChildren) {
         { cartKey, product, quantity, notes, customisations, unitPrice },
       ];
     });
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setCartRestaurantId(undefined);
+    setCartRestaurantName(undefined);
+  };
 
   const setQuantity = (id: string, quantity: number) =>
     setCart((current) =>
@@ -648,6 +661,8 @@ export function OrderProvider({ children }: PropsWithChildren) {
   const value = useMemo(
     () => ({
       cart,
+      cartRestaurantId,
+      cartRestaurantName,
       pickupTime,
       pickupSlot,
       orderMode,
@@ -661,7 +676,7 @@ export function OrderProvider({ children }: PropsWithChildren) {
       backendError,
       addToCart,
       setQuantity,
-      clearCart: () => setCart([]),
+      clearCart,
       setPickupTime,
       setOrderMode,
       setOrderNotes,
@@ -677,6 +692,8 @@ export function OrderProvider({ children }: PropsWithChildren) {
     }),
     [
       cart,
+      cartRestaurantId,
+      cartRestaurantName,
       pickupTime,
       pickupSlot,
       orderMode,

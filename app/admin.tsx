@@ -8,6 +8,9 @@ import { money, paymentMethodLabel } from "@/src/data/products";
 import { colors } from "@/src/theme";
 import { AdminOrderAlerts } from "@/src/components/AdminOrderAlerts";
 import { useAdminAuth } from "@/src/context/AdminAuthContext";
+import { useRestaurant } from "@/src/context/RestaurantContext";
+import { useServiceRequests } from "@/src/context/ServiceRequestContext";
+
 const tabs: OrderStatus[] = ["Incoming", "Preparing", "Ready", "Collected"];
 const next: Partial<Record<OrderStatus, OrderStatus>> = {
   Incoming: "Preparing",
@@ -19,6 +22,7 @@ const labels: Partial<Record<OrderStatus, string>> = {
   Preparing: "Mark ready",
   Ready: "Mark collected",
 };
+
 const AdminLink = ({
   icon,
   title,
@@ -35,7 +39,8 @@ const AdminLink = ({
     | "/admin-customisations"
     | "/admin-loyalty"
     | "/admin-payments"
-    | "/admin-staff";
+    | "/admin-staff"
+    | "/super-admin";
 }) => (
   <Pressable style={styles.menuLink} onPress={() => router.push(route as never)}>
     <View style={styles.menuIcon}>
@@ -48,15 +53,23 @@ const AdminLink = ({
     <Ionicons name="chevron-forward" size={20} color={colors.muted} />
   </Pressable>
 );
+
 export default function Admin() {
   const [tab, setTab] = useState<OrderStatus>("Incoming");
-  const { orders, updateOrderStatus, backendError } = useOrders();
+  const { currentRestaurant, restaurants, setCurrentRestaurant } = useRestaurant();
+  const { orders, updateOrderStatus, markOrderPaid, backendError } = useOrders();
+  const { requests: serviceRequests, updateStatus: updateServiceStatus } = useServiceRequests();
   const auth = useAdminAuth();
+
   const visible = orders.filter((o) => o.status === tab);
+  const pendingRequests = serviceRequests.filter(
+    (r) => r.status === "pending" || r.status === "acknowledged",
+  );
+
   return (
     <Screen>
       <Header
-        title="Cafe Admin"
+        title="Staff Admin"
         right={
           <Pressable onPress={() => void auth.signOut()}>
             <Text style={styles.exit}>Sign out</Text>
@@ -64,17 +77,90 @@ export default function Admin() {
         }
       />
       <AdminOrderAlerts />
+
+      <View style={styles.restaurantBar}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.staffRoleText}>
+            {auth.staff?.role?.toUpperCase()} · {auth.staff?.displayName || auth.staff?.email}
+          </Text>
+          <Text style={styles.activeRestName}>{currentRestaurant.name}</Text>
+        </View>
+        {auth.isSuperAdmin && (
+          <Pressable
+            style={styles.switchRestBtn}
+            onPress={() => router.push('/restaurants')}
+          >
+            <Ionicons name="swap-horizontal" size={14} color={colors.espresso} />
+            <Text style={styles.switchRestText}>Switch Café</Text>
+          </Pressable>
+        )}
+      </View>
+
       <View style={styles.banner}>
         <Text style={styles.bannerSmall}>ORDER DASHBOARD</Text>
         <Text style={styles.bannerTitle}>Keep the queue moving.</Text>
         <Text style={styles.bannerText}>
-          {orders.filter((o) => o.status !== "Collected").length} active orders
+          {orders.filter((o) => o.status !== "Collected").length} active orders for {currentRestaurant.name}
         </Text>
       </View>
+
+      {/* Live Table Service Requests Banner */}
+      {pendingRequests.length > 0 && (
+        <Card style={styles.serviceBanner}>
+          <View style={styles.serviceBannerHeader}>
+            <Ionicons name="notifications-outline" size={18} color={colors.espresso} />
+            <Text style={styles.serviceBannerTitle}>
+              Table Service Requests ({pendingRequests.length})
+            </Text>
+          </View>
+          {pendingRequests.map((req) => (
+            <View key={req.id} style={styles.serviceRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.serviceTable}>
+                  {req.tableName} · {req.requestType.replace('_', ' ').toUpperCase()}
+                </Text>
+                {!!req.notes && (
+                  <Text style={styles.serviceNotes}>"{req.notes}"</Text>
+                )}
+                <Text style={styles.serviceTime}>
+                  {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+              <View style={styles.serviceActions}>
+                {req.status === 'pending' && (
+                  <Pressable
+                    style={styles.ackBtn}
+                    onPress={() => void updateServiceStatus(req.id, 'acknowledged')}
+                  >
+                    <Text style={styles.ackBtnText}>Acknowledge</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  style={styles.doneBtn}
+                  onPress={() => void updateServiceStatus(req.id, 'completed')}
+                >
+                  <Ionicons name="checkmark" size={14} color={colors.white} />
+                  <Text style={styles.doneBtnText}>Done</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </Card>
+      )}
+
+      {auth.isSuperAdmin && (
+        <AdminLink
+          icon="globe-outline"
+          title="Super Admin Management"
+          text="Manage all platform restaurants, onboard new cafes"
+          route="/super-admin"
+        />
+      )}
+
       <AdminLink
         icon="people-outline"
-        title="Staff Access"
-        text={`Signed in as ${auth.staff?.displayName || auth.staff?.email}`}
+        title="Staff & Roles"
+        text={`Manage roles for ${currentRestaurant.name}`}
         route="/admin-staff"
       />
       <AdminLink
@@ -113,7 +199,9 @@ export default function Admin() {
         text="Tables, QR links and printable cards"
         route="/admin-tables"
       />
+
       {!!backendError && <Text style={styles.error}>{backendError}</Text>}
+
       <View style={styles.tabs}>
         {tabs.map((t) => (
           <Pressable
@@ -130,12 +218,14 @@ export default function Admin() {
           </Pressable>
         ))}
       </View>
+
       <Text style={styles.heading}>{tab} orders</Text>
+
       {!visible.length ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>All clear</Text>
           <Text style={styles.muted}>
-            No {tab.toLowerCase()} orders right now.
+            No {tab.toLowerCase()} orders right now for {currentRestaurant.name}.
           </Text>
         </View>
       ) : (
@@ -173,23 +263,39 @@ export default function Admin() {
                   {paymentMethodLabel(order.paymentMethod, order.orderType)}
                 </Text>
               </View>
-              <Text style={styles.price}>{money(order.total)}</Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.price}>{money(order.total)}</Text>
+                {order.paymentStatus === "unpaid" && (
+                  <Pressable
+                    style={styles.markPaidBtn}
+                    onPress={() => void markOrderPaid(order.id)}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={13} color={colors.green} />
+                    <Text style={styles.markPaidText}>Mark Paid</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
+
             <View style={styles.rule} />
+
             {order.items.map((i) => (
               <Text key={`${i.product.id}-${i.notes}`} style={styles.item}>
                 {i.quantity} × {i.product.name}
                 {i.notes ? ` · ${i.notes}` : ""}
               </Text>
             ))}
+
             {!!order.orderNotes && (
               <Text style={styles.notes}>Note: {order.orderNotes}</Text>
             )}
+
             <Text style={styles.customer}>
               {order.orderType === "table"
                 ? order.table?.name
                 : `${order.customerName} · ${order.phone}`}
             </Text>
+
             {next[tab] && (
               <Button
                 label={labels[tab]!}
@@ -202,8 +308,46 @@ export default function Admin() {
     </Screen>
   );
 }
+
 const styles = StyleSheet.create({
   exit: { color: colors.coffee, fontWeight: "800" },
+  restaurantBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  staffRoleText: {
+    color: colors.caramel,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  activeRestName: {
+    color: colors.espresso,
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  switchRestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.cream,
+  },
+  switchRestText: {
+    color: colors.espresso,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   banner: {
     backgroundColor: colors.espresso,
     padding: 20,
@@ -223,6 +367,76 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   bannerText: { color: "#E7DCD5", marginTop: 5 },
+  serviceBanner: {
+    backgroundColor: '#FFF8EB',
+    borderColor: '#EBD9B6',
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  serviceBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  serviceBannerTitle: {
+    color: colors.espresso,
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  serviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: '#EBD9B6',
+  },
+  serviceTable: {
+    fontWeight: '800',
+    color: colors.ink,
+    fontSize: 13,
+  },
+  serviceNotes: {
+    color: colors.muted,
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  serviceTime: {
+    color: colors.muted,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  serviceActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  ackBtn: {
+    backgroundColor: colors.cream,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  ackBtnText: {
+    color: colors.espresso,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  doneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.green,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  doneBtnText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '800',
+  },
   menuLink: {
     backgroundColor: colors.white,
     borderRadius: 17,
@@ -277,6 +491,21 @@ const styles = StyleSheet.create({
   },
   orderId: { color: colors.espresso, fontWeight: "800", fontSize: 17 },
   price: { color: colors.coffee, fontWeight: "800", fontSize: 17 },
+  markPaidBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#E6F4EA",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  markPaidText: {
+    color: colors.green,
+    fontSize: 10,
+    fontWeight: "800",
+  },
   rule: { borderTopWidth: 1, borderColor: colors.line, marginVertical: 12 },
   item: { color: colors.ink, marginBottom: 6 },
   notes: {
@@ -292,7 +521,15 @@ const styles = StyleSheet.create({
     marginTop: 9,
     marginBottom: 14,
   },
-  paymentBadge: { alignSelf: "flex-start", fontWeight: "800", fontSize: 10, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginTop: 7 },
+  paymentBadge: {
+    alignSelf: "flex-start",
+    fontWeight: "800",
+    fontSize: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 7,
+  },
   paid: { color: colors.green, backgroundColor: "#E6F4EA" },
   unpaid: { color: colors.caramel, backgroundColor: colors.cream },
   refunded: { color: colors.muted, backgroundColor: colors.line },
