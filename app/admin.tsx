@@ -35,6 +35,7 @@ const AdminLink = ({
   title: string;
   text: string;
   route:
+    | "/admin-operations"
     | "/admin-analytics"
     | "/admin-kitchen"
     | "/admin-menu"
@@ -161,6 +162,12 @@ export default function Admin() {
         />
       )}
 
+      <AdminLink
+        icon="construct-outline"
+        title="Operations & Automation Hub"
+        text="Smart Inventory, AI Staff Roster, Checklists, Wait Balancer & Hardware"
+        route="/admin-operations"
+      />
       <AdminLink
         icon="stats-chart-outline"
         title="Sales & Analytics"
