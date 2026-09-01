@@ -12,7 +12,13 @@ import {
 import { colors } from '@/src/theme';
 import { money, paymentMethodLabel } from '@/src/data/products';
 
-const steps: OrderStatus[] = ['Incoming', 'Preparing', 'Ready', 'Collected'];
+const steps: Array<{ status: OrderStatus; label: string }> = [
+  { status: 'Incoming', label: 'Order Received' },
+  { status: 'Accepted', label: 'Accepted by Café' },
+  { status: 'Preparing', label: 'Preparing' },
+  { status: 'Ready', label: 'Ready' },
+  { status: 'Collected', label: 'Completed' },
+];
 
 export default function OrderStatusScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -24,9 +30,13 @@ export default function OrderStatusScreen() {
   const [busyService, setBusyService] = useState(false);
 
   const order = orders.find((o) => o.id === id) || latestOrder;
-  const active = order ? steps.indexOf(order.status) : 0;
+  const statusIndex = order
+    ? steps.findIndex((s) => s.status === order.status)
+    : 0;
+  const active = statusIndex >= 0 ? statusIndex : 0;
   const table = order?.orderType === 'table';
   const restaurantName = order?.restaurant?.name || currentRestaurant.name;
+  const isReady = order?.status === 'Ready';
 
   const handleTableService = async (type: ServiceRequestType) => {
     setBusyService(true);
@@ -51,37 +61,65 @@ export default function OrderStatusScreen() {
 
   return (
     <Screen>
-      <Header title="Order Status" />
+      <Header title="Live Order Tracking" />
 
       <View style={s.restaurantHeader}>
         <Text style={s.restaurantName}>{restaurantName}</Text>
-        <Text style={s.order}>Order {order?.id || '—'}</Text>
+        <Text style={s.orderId}>Order #{order?.id || '—'}</Text>
       </View>
+
+      {/* Strong In-App Banner When Ready */}
+      {isReady && (
+        <View style={s.readyAlert}>
+          <View style={s.readyAlertIcon}>
+            <Ionicons name="sparkles" size={24} color={colors.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.readyAlertTitle}>
+              {table ? 'Ready at Your Table!' : 'Ready for Pickup!'}
+            </Text>
+            <Text style={s.readyAlertText}>
+              {table
+                ? `Our team is bringing your freshly prepared items over to ${order?.table?.name || 'your table'}.`
+                : `Your order is fresh and waiting for you at the ${restaurantName} counter.`}
+            </Text>
+          </View>
+        </View>
+      )}
 
       <Text style={s.title}>
         {order?.status === 'Ready'
           ? table
-            ? 'Your order is ready!'
+            ? 'Order is ready!'
             : 'Ready for pickup!'
           : order?.status === 'Collected'
             ? 'Enjoy your order!'
-            : 'We’re on it.'}
+            : order?.status === 'Preparing'
+              ? 'Preparing your items'
+              : order?.status === 'Accepted'
+                ? 'Order accepted by café'
+                : 'Order received'}
       </Text>
       <Text style={s.subtitle}>
         {table
-          ? `Table: ${order?.table?.name || '—'}`
-          : `Pickup: ${order?.pickupTime || 'Not scheduled'}`}
+          ? `Table Service · ${order?.table?.name || 'Table'}`
+          : `Pickup Time: ${order?.pickupTime || 'Scheduled for today'}`}
       </Text>
 
-      <Card>
+      {/* Step Tracker Card */}
+      <Card style={s.trackerCard}>
         {steps.map((step, index) => (
-          <View key={step} style={s.step}>
-            <Text style={[s.dot, index <= active && s.done]}>
-              {index < active ? '✓' : index + 1}
-            </Text>
-            <Text style={s.stepTitle}>
-              {step === 'Incoming' ? 'Order received' : step}
-            </Text>
+          <View key={step.status} style={s.step}>
+            <View style={[s.dot, index <= active && s.done]}>
+              <Text style={s.dotText}>
+                {index < active ? '✓' : index + 1}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.stepTitle, index === active && s.stepTitleActive]}>
+                {step.label}
+              </Text>
+            </View>
           </View>
         ))}
       </Card>
@@ -91,7 +129,7 @@ export default function OrderStatusScreen() {
         <Card style={s.tableServiceCard}>
           <Text style={s.tableServiceTitle}>Table Service</Text>
           <Text style={s.tableServiceHelp}>
-            Need something from our team while seated?
+            Need assistance from our team while seated at {order?.table?.name || 'your table'}?
           </Text>
 
           <View style={s.serviceButtonsRow}>
@@ -151,6 +189,7 @@ export default function OrderStatusScreen() {
         </Card>
       )}
 
+      {/* Order Item Summary */}
       {order && (
         <Card style={s.summary}>
           <Text style={s.payment}>
@@ -162,7 +201,7 @@ export default function OrderStatusScreen() {
           </Text>
           {order.items.map((item) => (
             <View key={item.cartKey} style={s.item}>
-              <Text style={s.stepTitle}>
+              <Text style={s.itemTitle}>
                 {item.quantity} × {item.product.name}
               </Text>
               {item.customisations.map((option) => (
@@ -193,7 +232,7 @@ export default function OrderStatusScreen() {
 const s = StyleSheet.create({
   restaurantHeader: {
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   restaurantName: {
     color: colors.caramel,
@@ -202,44 +241,79 @@ const s = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
-  order: {
-    color: colors.muted,
-    fontWeight: '800',
-    fontSize: 13,
+  orderId: {
+    color: colors.espresso,
+    fontWeight: '900',
+    fontSize: 15,
     marginTop: 2,
+  },
+  readyAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E4620',
+    borderRadius: 18,
+    padding: 16,
+    marginVertical: 12,
+  },
+  readyAlertIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readyAlertTitle: {
+    color: colors.white,
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  readyAlertText: {
+    color: '#D4EBD6',
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 16,
   },
   title: {
     color: colors.ink,
-    fontWeight: '800',
-    fontSize: 26,
+    fontWeight: '900',
+    fontSize: 25,
     textAlign: 'center',
     marginTop: 6,
   },
   subtitle: {
     color: colors.muted,
     textAlign: 'center',
-    marginVertical: 12,
+    marginVertical: 10,
     fontSize: 13,
+  },
+  trackerCard: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   step: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    minHeight: 52,
+    gap: 14,
+    minHeight: 46,
   },
   dot: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dotText: {
     color: colors.white,
-    textAlign: 'center',
-    textAlignVertical: 'center',
     fontWeight: '800',
-    lineHeight: 30,
+    fontSize: 12,
   },
   done: { backgroundColor: colors.green },
-  stepTitle: { fontWeight: '800', color: colors.ink, fontSize: 14 },
+  stepTitle: { fontWeight: '700', color: colors.muted, fontSize: 13 },
+  stepTitleActive: { color: colors.ink, fontWeight: '900' },
   tableServiceCard: {
     marginTop: 14,
     backgroundColor: '#F8F5F0',
@@ -296,6 +370,7 @@ const s = StyleSheet.create({
   },
   summary: { marginTop: 14 },
   item: { paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.line },
+  itemTitle: { fontWeight: '800', color: colors.ink, fontSize: 13 },
   detail: { color: colors.muted, fontSize: 12, marginTop: 3 },
   payment: { color: colors.green, fontWeight: '800', marginBottom: 8, fontSize: 12 },
   reward: { color: colors.green, fontWeight: '700', marginTop: 8, fontSize: 12 },

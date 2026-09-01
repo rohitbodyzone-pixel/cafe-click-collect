@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { money } from "@/src/data/products";
 import { supabase } from "@/src/lib/supabase";
+import { useRestaurant } from "@/src/context/RestaurantContext";
 import { colors, shadow } from "@/src/theme";
 
 const MUTED_KEY = "cafe-admin-alerts-muted";
@@ -61,6 +62,7 @@ function makeDingUri() {
 const dingUri = makeDingUri();
 
 export function AdminOrderAlerts() {
+  const { currentRestaurant } = useRestaurant();
   const player = useAudioPlayer(dingUri);
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false);
@@ -95,12 +97,17 @@ export function AdminOrderAlerts() {
     if (!supabase) return;
     const client = supabase;
     const channel = client
-      .channel("admin-new-order-alerts")
+      .channel(`admin-new-order-alerts-${currentRestaurant.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          filter: `restaurant_id=eq.${currentRestaurant.id}`,
+        },
         (payload) => {
-          const order = payload.new as NewOrder;
+          const order = payload.new as NewOrder & { restaurant_id?: string };
           if (!order.id || seenRef.current.has(order.id)) return;
           seenRef.current.add(order.id);
           void AsyncStorage.setItem(
@@ -122,7 +129,7 @@ export function AdminOrderAlerts() {
       void client.removeChannel(channel);
       Speech.stop();
     };
-  }, [player]);
+  }, [player, currentRestaurant.id]);
 
   const toggleMute = () => {
     if (!audioEnabled) {

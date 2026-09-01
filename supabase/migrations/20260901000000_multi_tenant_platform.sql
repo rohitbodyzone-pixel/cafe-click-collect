@@ -123,6 +123,8 @@ alter table public.orders
   alter column restaurant_id set default 'c0000000-0000-0000-0000-000000000001';
 alter table public.orders
   alter column restaurant_id set not null;
+alter table public.orders drop constraint if exists orders_status_check;
+alter table public.orders add constraint orders_status_check check (status in ('Incoming', 'Accepted', 'Preparing', 'Ready', 'Collected', 'Cancelled'));
 create index if not exists orders_restaurant_status_created_idx on public.orders (restaurant_id, status, created_at desc);
 create index if not exists orders_restaurant_customer_key_idx on public.orders (restaurant_id, customer_key);
 

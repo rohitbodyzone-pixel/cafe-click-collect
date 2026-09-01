@@ -11,14 +11,16 @@ import { useAdminAuth } from "@/src/context/AdminAuthContext";
 import { useRestaurant } from "@/src/context/RestaurantContext";
 import { useServiceRequests } from "@/src/context/ServiceRequestContext";
 
-const tabs: OrderStatus[] = ["Incoming", "Preparing", "Ready", "Collected"];
+const tabs: OrderStatus[] = ["Incoming", "Accepted", "Preparing", "Ready", "Collected"];
 const next: Partial<Record<OrderStatus, OrderStatus>> = {
-  Incoming: "Preparing",
+  Incoming: "Accepted",
+  Accepted: "Preparing",
   Preparing: "Ready",
   Ready: "Collected",
 };
 const labels: Partial<Record<OrderStatus, string>> = {
-  Incoming: "Start preparing",
+  Incoming: "Accept order",
+  Accepted: "Start preparing",
   Preparing: "Mark ready",
   Ready: "Mark collected",
 };
@@ -33,6 +35,7 @@ const AdminLink = ({
   title: string;
   text: string;
   route:
+    | "/admin-kitchen"
     | "/admin-menu"
     | "/admin-pickup-settings"
     | "/admin-tables"
@@ -157,6 +160,12 @@ export default function Admin() {
         />
       )}
 
+      <AdminLink
+        icon="speedometer-outline"
+        title="Kitchen Display System (KDS)"
+        text="Live queue with preparation timers and order bump"
+        route="/admin-kitchen"
+      />
       <AdminLink
         icon="people-outline"
         title="Staff & Roles"

@@ -27,6 +27,7 @@ export type CartItem = {
 };
 export type OrderStatus =
   | 'Incoming'
+  | 'Accepted'
   | 'Preparing'
   | 'Ready'
   | 'Collected'
