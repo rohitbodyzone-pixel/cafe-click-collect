@@ -59,7 +59,27 @@ export function AdminAuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    // First try multi-tenant restaurant_staff table
+    // First try secure get_my_staff_profile RPC
+    try {
+      const { data: rpcStaff } = await supabase.rpc('get_my_staff_profile');
+      if (rpcStaff) {
+        setStaff({
+          id: rpcStaff.id,
+          userId: rpcStaff.user_id || current.user.id,
+          email: rpcStaff.email,
+          displayName: rpcStaff.display_name,
+          role: rpcStaff.role,
+          restaurantId: rpcStaff.restaurant_id || undefined,
+        });
+        setError(undefined);
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // Continue to direct query fallback
+    }
+
+    // Direct query fallback on restaurant_staff table
     const result = await supabase
       .from('restaurant_staff')
       .select('*')
