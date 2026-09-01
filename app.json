@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Cafe Click & Collect",
+    "slug": "cafe-click-and-collect",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "cafeclickcollect",
+    "ios": {
+      "bundleIdentifier": "com.cafeclickcollect.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.cafeclickcollect.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-audio",
+      "expo-asset",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.cafeclickcollect",
+          "enableGooglePay": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
+  }
+}
