@@ -527,7 +527,7 @@ export default function AdminOperationsScreen() {
                 <View key={pos.id} style={s.posItem}>
                   <View>
                     <Text style={s.posName}>{pos.provider.toUpperCase()} Integration</Text>
-                    <Text style={s.posSub}>Mode: {pos.apiEnvironment.toUpperCase()} · Auto Sync Enabled</Text>
+                    <Text style={s.posSub}>Mode: {(pos.apiEnvironment || 'sandbox').toUpperCase()} · Auto Sync Enabled</Text>
                   </View>
                   <Pressable style={s.syncBtn} onPress={() => void handleSyncPOS(pos.provider)}>
                     <Ionicons name="sync-outline" size={14} color={colors.espresso} />

@@ -22,7 +22,7 @@ class MockPOSAdapter implements POSAdapter {
         sku: i.itemId,
         item_name: i.name,
         qty: i.quantity,
-        amount: i.totalPriceCents / 100,
+        amount: (i.totalPriceCents ?? i.unitPriceCents * i.quantity) / 100,
         options: i.modifiers,
       })),
       tender: {

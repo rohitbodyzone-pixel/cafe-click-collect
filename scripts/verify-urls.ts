@@ -14,8 +14,12 @@ const routes = [
   '/rewards',
   '/passes',
   '/r/common-ground/table/5',
-  '/r/trattoria-bella/table/B10',
+  '/kitchen',
+  '/counter',
+  '/manager',
+  '/owner',
   '/admin',
+  '/admin-features',
   '/admin-kitchen',
   '/admin-tables',
   '/admin-table-qr',
@@ -32,6 +36,7 @@ const routes = [
   '/admin-analytics',
   '/super-admin',
   '/super-admin-billing',
+  '/super-admin-features',
 ];
 
 async function checkUrl(path: string): Promise<{ path: string; status: number; ok: boolean }> {

@@ -1,127 +1,314 @@
-import { KitchenDocketPayload, CustomerReceiptPayload, PrinterAdapter, PrinterConfig } from './types';
+export interface PrinterSettings {
+  printerIp: string;
+  printerPort: number;
+  paperWidthMm: number; // 58 or 80
+  autoPrintKitchenDocket: boolean;
+  autoPrintCustomerReceipt: boolean;
+  printStationFilter: string;
+  cutPaper: boolean;
+  openCashDrawer: boolean;
+  gstNumber?: string;
+  isEnabled: boolean;
+}
 
-// ESC/POS command constants
-const ESC = '\x1B';
-const GS = '\x1D';
-const CMD = {
+export interface PrintableOrderItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  modifiers?: { name: string; price: number }[];
+  notes?: string;
+  station?: string;
+}
+
+export interface PrintableOrder {
+  id: string;
+  customerName: string;
+  pickupTime: string;
+  pickupCode?: string;
+  orderType: 'pickup' | 'table';
+  tableName?: string;
+  items: PrintableOrderItem[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  staffName?: string;
+  createdAt: string;
+  orderNotes?: string;
+}
+
+export interface RestaurantBranding {
+  name: string;
+  address: string;
+  phone: string;
+  gstNumber?: string;
+}
+
+// ESC/POS Command Constants
+const ESC = '\x1b';
+const GS = '\x1d';
+
+export const COMMANDS = {
   INIT: `${ESC}@`,
   ALIGN_LEFT: `${ESC}a\x00`,
   ALIGN_CENTER: `${ESC}a\x01`,
   ALIGN_RIGHT: `${ESC}a\x02`,
   BOLD_ON: `${ESC}E\x01`,
   BOLD_OFF: `${ESC}E\x00`,
-  DOUBLE_HEIGHT: `${GS}!\x10`,
-  DOUBLE_WIDTH: `${GS}!\x20`,
-  DOUBLE_SIZE: `${GS}!\x30`,
-  NORMAL_SIZE: `${GS}!\x00`,
-  FEED_AND_CUT: `${GS}V\x41\x03`,
-  LINE: '------------------------------------------\n',
-  DOUBLE_LINE: '==========================================\n',
+  DOUBLE_SIZE_ON: `${GS}!\x11`,
+  DOUBLE_SIZE_OFF: `${GS}!\x00`,
+  CUT_PAPER: `${GS}VA\x03`,
+  FEED_LINES: (n: number) => `${ESC}d${String.fromCharCode(n)}`,
+  CASH_DRAWER_KICK: `${ESC}p\x00\x19\xfa`,
 };
 
-export class ESCPOSAdapter implements PrinterAdapter {
+function formatLine(left: string, right: string, width: number = 42): string {
+  const space = width - left.length - right.length;
+  if (space < 1) {
+    return `${left}\n${' '.repeat(Math.max(0, width - right.length))}${right}`;
+  }
+  return `${left}${' '.repeat(space)}${right}`;
+}
+
+function divider(width: number = 42): string {
+  return '-'.repeat(width);
+}
+
+function doubleDivider(width: number = 42): string {
+  return '='.repeat(width);
+}
+
+/**
+ * Generates raw ESC/POS binary string for Kitchen Docket
+ */
+export function generateKitchenDocket(
+  order: PrintableOrder,
+  restaurant: RestaurantBranding,
+  settings: Partial<PrinterSettings> = {},
+): string {
+  const width = settings.paperWidthMm === 58 ? 32 : 42;
+  const parts: string[] = [];
+
+  parts.push(COMMANDS.INIT);
+  parts.push(COMMANDS.ALIGN_CENTER);
+  parts.push(COMMANDS.BOLD_ON);
+  parts.push(COMMANDS.DOUBLE_SIZE_ON);
+  parts.push(`KITCHEN DOCKET\n`);
+  parts.push(COMMANDS.DOUBLE_SIZE_OFF);
+  parts.push(`${restaurant.name.toUpperCase()}\n`);
+  parts.push(COMMANDS.BOLD_OFF);
+  parts.push(divider(width) + '\n');
+
+  parts.push(COMMANDS.ALIGN_LEFT);
+  parts.push(COMMANDS.BOLD_ON);
+  parts.push(formatLine(`TICKET: ${order.id}`, `CODE: ${order.pickupCode || 'N/A'}`, width) + '\n');
+  parts.push(
+    formatLine(
+      `TYPE: ${order.orderType.toUpperCase()}`,
+      order.tableName ? `TABLE: ${order.tableName}` : `TIME: ${order.pickupTime}`,
+      width,
+    ) + '\n',
+  );
+  parts.push(COMMANDS.BOLD_OFF);
+  parts.push(`CUSTOMER: ${order.customerName}\n`);
+  if (order.staffName) {
+    parts.push(`TAKEN BY: ${order.staffName}\n`);
+  }
+  parts.push(divider(width) + '\n');
+
+  // Order Items
+  parts.push(COMMANDS.BOLD_ON);
+  parts.push(formatLine('QTY  ITEM', 'STATION', width) + '\n');
+  parts.push(COMMANDS.BOLD_OFF);
+  parts.push(divider(width) + '\n');
+
+  for (const item of order.items) {
+    parts.push(COMMANDS.BOLD_ON);
+    parts.push(formatLine(`${item.quantity}x   ${item.name}`, item.station || 'MAIN', width) + '\n');
+    parts.push(COMMANDS.BOLD_OFF);
+
+    if (item.modifiers && item.modifiers.length > 0) {
+      for (const mod of item.modifiers) {
+        parts.push(`     + ${mod.name}\n`);
+      }
+    }
+    if (item.notes) {
+      parts.push(`     * NOTE: ${item.notes}\n`);
+    }
+  }
+
+  if (order.orderNotes) {
+    parts.push(divider(width) + '\n');
+    parts.push(COMMANDS.BOLD_ON);
+    parts.push(`ORDER NOTE: ${order.orderNotes}\n`);
+    parts.push(COMMANDS.BOLD_OFF);
+  }
+
+  parts.push(doubleDivider(width) + '\n');
+  parts.push(COMMANDS.ALIGN_CENTER);
+  parts.push(`PLACED AT: ${new Date(order.createdAt).toLocaleTimeString()}\n`);
+  parts.push(COMMANDS.FEED_LINES(3));
+
+  if (settings.cutPaper !== false) {
+    parts.push(COMMANDS.CUT_PAPER);
+  }
+
+  return parts.join('');
+}
+
+/**
+ * Generates raw ESC/POS binary string for Customer GST Tax Receipt
+ */
+export function generateCustomerGSTReceipt(
+  order: PrintableOrder,
+  restaurant: RestaurantBranding,
+  settings: Partial<PrinterSettings> = {},
+): string {
+  const width = settings.paperWidthMm === 58 ? 32 : 42;
+  const parts: string[] = [];
+  const gstNumber = restaurant.gstNumber || settings.gstNumber || '123-456-789';
+  const gstPortion = (order.total * 3) / 23; // NZ GST is 15% inclusive (3/23)
+
+  parts.push(COMMANDS.INIT);
+  parts.push(COMMANDS.ALIGN_CENTER);
+  parts.push(COMMANDS.BOLD_ON);
+  parts.push(COMMANDS.DOUBLE_SIZE_ON);
+  parts.push(`${restaurant.name}\n`);
+  parts.push(COMMANDS.DOUBLE_SIZE_OFF);
+  parts.push(COMMANDS.BOLD_OFF);
+  parts.push(`${restaurant.address}\n`);
+  parts.push(`Ph: ${restaurant.phone}\n`);
+  parts.push(COMMANDS.BOLD_ON);
+  parts.push(`GST / TAX INVOICE\n`);
+  parts.push(`GST Reg No: ${gstNumber}\n`);
+  parts.push(COMMANDS.BOLD_OFF);
+  parts.push(divider(width) + '\n');
+
+  parts.push(COMMANDS.ALIGN_LEFT);
+  parts.push(formatLine(`Order #: ${order.id}`, `Date: ${new Date(order.createdAt).toLocaleDateString()}`, width) + '\n');
+  parts.push(formatLine(`Time: ${new Date(order.createdAt).toLocaleTimeString()}`, `Pickup: ${order.pickupCode || order.pickupTime}`, width) + '\n');
+  parts.push(`Customer: ${order.customerName}\n`);
+  if (order.staffName) {
+    parts.push(`Served by: ${order.staffName}\n`);
+  }
+  parts.push(divider(width) + '\n');
+
+  // Items List
+  parts.push(COMMANDS.BOLD_ON);
+  parts.push(formatLine('ITEM', 'TOTAL', width) + '\n');
+  parts.push(COMMANDS.BOLD_OFF);
+  parts.push(divider(width) + '\n');
+
+  for (const item of order.items) {
+    parts.push(formatLine(`${item.quantity}x ${item.name}`, `$${item.totalPrice.toFixed(2)}`, width) + '\n');
+    if (item.modifiers && item.modifiers.length > 0) {
+      for (const mod of item.modifiers) {
+        parts.push(formatLine(`  + ${mod.name}`, mod.price > 0 ? `+$${mod.price.toFixed(2)}` : '', width) + '\n');
+      }
+    }
+  }
+
+  parts.push(divider(width) + '\n');
+  parts.push(formatLine('Subtotal (excl. discounts):', `$${order.subtotal.toFixed(2)}`, width) + '\n');
+  if (order.discount > 0) {
+    parts.push(formatLine('Discounts / Promos:', `-$${order.discount.toFixed(2)}`, width) + '\n');
+  }
+  parts.push(COMMANDS.BOLD_ON);
+  parts.push(formatLine('TOTAL (GST Incl.):', `$${order.total.toFixed(2)}`, width) + '\n');
+  parts.push(COMMANDS.BOLD_OFF);
+  parts.push(formatLine('Includes 15% GST:', `$${gstPortion.toFixed(2)}`, width) + '\n');
+  parts.push(formatLine('Payment Method:', `${order.paymentMethod.toUpperCase()} (${order.paymentStatus.toUpperCase()})`, width) + '\n');
+  parts.push(doubleDivider(width) + '\n');
+
+  parts.push(COMMANDS.ALIGN_CENTER);
+  parts.push(`Thank you for ordering with us!\n`);
+  parts.push(`Please retain this invoice for your tax records.\n`);
+  parts.push(COMMANDS.FEED_LINES(3));
+
+  if (settings.cutPaper !== false) {
+    parts.push(COMMANDS.CUT_PAPER);
+  }
+
+  if (settings.openCashDrawer && order.paymentMethod.toLowerCase().includes('cash')) {
+    parts.push(COMMANDS.CASH_DRAWER_KICK);
+  }
+
+  return parts.join('');
+}
+
+export class ESCPOSAdapter {
   type = 'esc_pos' as const;
-
-  formatKitchenDocket(payload: KitchenDocketPayload): string {
-    let out = '';
-    out += CMD.INIT;
-    out += CMD.ALIGN_CENTER;
-    out += `${CMD.DOUBLE_SIZE}${CMD.BOLD_ON}*** KITCHEN DOCKET ***${CMD.NORMAL_SIZE}${CMD.BOLD_OFF}\n`;
-    out += `${CMD.DOUBLE_WIDTH}${payload.restaurantName.toUpperCase()}${CMD.NORMAL_SIZE}\n\n`;
-
-    out += CMD.ALIGN_LEFT;
-    out += CMD.DOUBLE_LINE;
-    out += `${CMD.BOLD_ON}ORDER #${payload.orderId}${CMD.BOLD_OFF}\n`;
-    out += `TYPE: ${payload.orderType === 'table' ? `TABLE [${payload.tableName || 'Dine-In'}]` : 'CLICK & COLLECT'}\n`;
-    if (payload.customerName) out += `GUEST: ${payload.customerName}\n`;
-    if (payload.pickupTime) out += `DUE AT: ${payload.pickupTime}\n`;
-    out += `PLACED: ${new Date(payload.createdAt).toLocaleTimeString()}\n`;
-    out += CMD.LINE;
-
-    out += `${CMD.BOLD_ON}ITEMS ORDERED:${CMD.BOLD_OFF}\n\n`;
-    for (const item of payload.items) {
-      out += `${CMD.DOUBLE_HEIGHT}${CMD.BOLD_ON}${item.quantity}x ${item.name}${CMD.NORMAL_SIZE}${CMD.BOLD_OFF}\n`;
-      if (item.modifiers && item.modifiers.length > 0) {
-        for (const mod of item.modifiers) {
-          out += `   > ${mod}\n`;
-        }
-      }
-      if (item.notes) {
-        out += `   * NOTE: ${item.notes}\n`;
-      }
-      out += '\n';
-    }
-
-    if (payload.orderNotes) {
-      out += CMD.LINE;
-      out += `${CMD.BOLD_ON}SPECIAL INSTRUCTIONS:${CMD.BOLD_OFF}\n`;
-      out += `"${payload.orderNotes}"\n\n`;
-    }
-
-    out += CMD.DOUBLE_LINE;
-    out += CMD.ALIGN_CENTER;
-    out += `[ Printed by Cafe Click & Collect KDS ]\n\n\n`;
-    out += CMD.FEED_AND_CUT;
-    return out;
+  formatKitchenDocket(payload: any): string {
+    return generateKitchenDocket({
+      id: payload.orderId || 'ORD-01',
+      customerName: payload.customerName || 'Guest',
+      pickupTime: payload.pickupTime || 'Immediate',
+      pickupCode: payload.pickupCode,
+      orderType: payload.orderType || 'pickup',
+      tableName: payload.tableName,
+      items: (payload.items || []).map((i: any) => ({
+        name: i.name,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice || 0,
+        totalPrice: i.totalPrice || 0,
+        modifiers: (i.modifiers || []).map((m: string) => ({ name: m, price: 0 })),
+        notes: i.notes,
+      })),
+      subtotal: payload.subtotal || 0,
+      discount: payload.discount || 0,
+      total: payload.total || 0,
+      paymentMethod: payload.paymentMethod || 'card',
+      paymentStatus: payload.paymentStatus || 'paid',
+      createdAt: payload.createdAt || new Date().toISOString(),
+      orderNotes: payload.orderNotes,
+    }, {
+      name: payload.restaurantName || 'Cafe',
+      address: 'Auckland NZ',
+      phone: '09-1234567',
+    });
   }
 
-  formatCustomerReceipt(payload: CustomerReceiptPayload): string {
-    let out = '';
-    out += CMD.INIT;
-    out += CMD.ALIGN_CENTER;
-    out += `${CMD.DOUBLE_SIZE}${CMD.BOLD_ON}${payload.restaurantName}${CMD.NORMAL_SIZE}${CMD.BOLD_OFF}\n`;
-    if (payload.restaurantAddress) out += `${payload.restaurantAddress}\n`;
-    if (payload.restaurantPhone) out += `Tel: ${payload.restaurantPhone}\n`;
-    out += `TAX INVOICE (GST INCL)\n`;
-    out += `GST No: 123-456-789\n`;
-
-    out += CMD.ALIGN_LEFT;
-    out += CMD.LINE;
-    out += `Order #${payload.orderId} · ${new Date(payload.createdAt).toLocaleString()}\n`;
-    if (payload.customerName) out += `Customer: ${payload.customerName}\n`;
-    out += CMD.LINE;
-
-    out += `${CMD.BOLD_ON}ITEM                                PRICE${CMD.BOLD_OFF}\n`;
-    for (const item of payload.items) {
-      const itemTitle = `${item.quantity}x ${item.name}`;
-      const priceStr = `$${item.totalPrice.toFixed(2)}`;
-      const padding = Math.max(1, 42 - itemTitle.length - priceStr.length);
-      out += `${itemTitle}${' '.repeat(padding)}${priceStr}\n`;
-      if (item.modifiers) {
-        for (const m of item.modifiers) {
-          out += `  + ${m}\n`;
-        }
-      }
-    }
-
-    out += CMD.LINE;
-    const subStr = `$${payload.subtotal.toFixed(2)}`;
-    out += `Subtotal:${' '.repeat(Math.max(1, 33 - subStr.length))}${subStr}\n`;
-    if (payload.discount > 0) {
-      const discStr = `-$${payload.discount.toFixed(2)}`;
-      out += `Discount:${' '.repeat(Math.max(1, 33 - discStr.length))}${discStr}\n`;
-    }
-    const gstStr = `$${payload.gstAmount.toFixed(2)}`;
-    out += `Includes 15% GST:${' '.repeat(Math.max(1, 25 - gstStr.length))}${gstStr}\n`;
-
-    out += CMD.DOUBLE_LINE;
-    const totalStr = `$${payload.total.toFixed(2)}`;
-    out += `${CMD.DOUBLE_SIZE}${CMD.BOLD_ON}TOTAL:${' '.repeat(Math.max(1, 14 - totalStr.length))}${totalStr}${CMD.NORMAL_SIZE}${CMD.BOLD_OFF}\n`;
-    out += `Payment: ${payload.paymentMethod.toUpperCase()} (${payload.paymentStatus.toUpperCase()})\n\n`;
-
-    out += CMD.ALIGN_CENTER;
-    out += `Thank you for your visit!\n`;
-    out += `www.commonground.co.nz\n\n\n`;
-    out += CMD.FEED_AND_CUT;
-    return out;
+  formatCustomerReceipt(payload: any): string {
+    return generateCustomerGSTReceipt({
+      id: payload.orderId || 'ORD-01',
+      customerName: payload.customerName || 'Guest',
+      pickupTime: payload.pickupTime || 'Immediate',
+      orderType: 'pickup',
+      items: (payload.items || []).map((i: any) => ({
+        name: i.name,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice || 0,
+        totalPrice: i.totalPrice || 0,
+      })),
+      subtotal: payload.subtotal || 0,
+      discount: payload.discount || 0,
+      total: payload.total || 0,
+      paymentMethod: payload.paymentMethod || 'card',
+      paymentStatus: payload.paymentStatus || 'paid',
+      createdAt: payload.createdAt || new Date().toISOString(),
+    }, {
+      name: payload.restaurantName || 'Cafe',
+      address: 'Auckland NZ',
+      phone: '09-1234567',
+      gstNumber: '123-456-789',
+    });
   }
 
-  async print(config: PrinterConfig, rawData: string): Promise<{ success: boolean; message: string }> {
-    // Adapter execution pipeline
-    console.log(`[ESC/POS Printer] Sending ${rawData.length} bytes to ${config.ipAddress}:${config.port || 9100}`);
+  generateRawPayload(type: 'kitchen' | 'receipt', payload: any): Uint8Array {
+    const raw = type === 'kitchen' ? this.formatKitchenDocket(payload) : this.formatCustomerReceipt(payload);
+    return new TextEncoder().encode(raw);
+  }
+
+  async print(config: any, rawData: Uint8Array): Promise<any> {
+    console.log(`[ESC/POS Printer] Sending ${rawData.length} bytes to ${config.ipAddress}:${config.port}`);
     return {
       success: true,
-      message: `ESC/POS data successfully queued to ${config.printerName} (${config.ipAddress})`,
+      jobId: `PRINT-${Date.now()}`,
+      bytesSent: rawData.length,
+      timestamp: new Date().toISOString(),
     };
   }
 }
+
