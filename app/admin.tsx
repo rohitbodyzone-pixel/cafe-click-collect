@@ -35,6 +35,7 @@ const AdminLink = ({
   title: string;
   text: string;
   route:
+    | "/admin-ai"
     | "/admin-operations"
     | "/admin-analytics"
     | "/admin-kitchen"
@@ -162,6 +163,12 @@ export default function Admin() {
         />
       )}
 
+      <AdminLink
+        icon="sparkles-outline"
+        title="AI & Analytics Copilot"
+        text="Demand Forecast, Health Score (0-100), Menu BCG Matrix, Win-Back & Memory"
+        route="/admin-ai"
+      />
       <AdminLink
         icon="construct-outline"
         title="Operations & Automation Hub"
