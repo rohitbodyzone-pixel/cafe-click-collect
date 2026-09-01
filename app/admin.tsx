@@ -35,6 +35,7 @@ const AdminLink = ({
   title: string;
   text: string;
   route:
+    | "/admin-growth"
     | "/admin-ai"
     | "/admin-operations"
     | "/admin-analytics"
@@ -163,6 +164,12 @@ export default function Admin() {
         />
       )}
 
+      <AdminLink
+        icon="megaphone-outline"
+        title="Growth, Marketing & Concierge"
+        text="AI Social Copywriter, Review Responder, Voice Phone Orders, Group Orders & POs"
+        route="/admin-growth"
+      />
       <AdminLink
         icon="sparkles-outline"
         title="AI & Analytics Copilot"

@@ -139,7 +139,7 @@ async function runRegressionSuite() {
       p_customer_name: 'Regression Tester',
       p_phone: '+64 21 999 8888',
       p_pickup_time: '01:30 PM',
-      p_pickup_slot: '2026-09-01T13:30',
+      p_pickup_slot: `2026-09-${String(Math.floor(10 + Math.random() * 15)).padStart(2, '0')}T14:30`,
       p_items: [{
         product_id: 'flat-white',
         product_name: 'Flat White',

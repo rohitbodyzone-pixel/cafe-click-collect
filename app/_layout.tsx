@@ -13,6 +13,7 @@ import { ServiceRequestProvider } from '@/src/context/ServiceRequestContext';
 import { CustomerExperienceProvider } from '@/src/context/CustomerExperienceContext';
 import { RestaurantOperationsProvider } from '@/src/context/RestaurantOperationsContext';
 import { RestaurantAIProvider } from '@/src/context/RestaurantAIContext';
+import { GrowthConciergeProvider } from '@/src/context/GrowthConciergeContext';
 import { AdminGate } from '@/src/components/AdminGate';
 
 function AppNavigator() {
@@ -43,8 +44,10 @@ export default function RootLayout() {
                         <CustomerExperienceProvider>
                           <RestaurantOperationsProvider>
                             <RestaurantAIProvider>
-                              <StatusBar style="dark" />
-                              <AppNavigator />
+                              <GrowthConciergeProvider>
+                                <StatusBar style="dark" />
+                                <AppNavigator />
+                              </GrowthConciergeProvider>
                             </RestaurantAIProvider>
                           </RestaurantOperationsProvider>
                         </CustomerExperienceProvider>
