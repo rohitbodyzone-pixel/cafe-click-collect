@@ -21,7 +21,7 @@ export type PricedItem = {
 
 const fail = (message: string): never => { throw new Error(message); };
 
-export async function createSecureQuote(db: Db, rawItems: CheckoutItem[], customerKey: string, rawPromoCode?: string, redeemFreeCoffee = false) {
+export async function createSecureQuote(db: Db, rawItems: CheckoutItem[], customerKey: string, rawPromoCode?: string, redeemFreeCoffee = false, restaurantId = 'c0000000-0000-0000-0000-000000000001') {
   if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > 50) fail('Your cart is empty or too large.');
   const ids = [...new Set(rawItems.map(item => String(item.product_id || '')))];
   if (ids.some(id => !id)) fail('A cart item is invalid.');
@@ -98,7 +98,9 @@ export async function createSecureQuote(db: Db, rawItems: CheckoutItem[], custom
   let promoDiscountCents = 0;
   const normalizedPromo = String(rawPromoCode ?? '').trim().toUpperCase();
   if (normalizedPromo) {
-    const { data: promo } = await db.from('promo_codes').select('*').eq('code', normalizedPromo)
+    const { data: promo } = await db.from('promo_codes').select('*')
+      .eq('restaurant_id', restaurantId)
+      .eq('code', normalizedPromo)
       .eq('enabled', true).maybeSingle();
     const valid = promo && subtotalCents >= promo.minimum_spend_cents &&
       (!promo.expires_at || new Date(promo.expires_at).getTime() >= Date.now());
@@ -110,8 +112,10 @@ export async function createSecureQuote(db: Db, rawItems: CheckoutItem[], custom
   }
 
   const [{ data: settings }, { data: balance }] = await Promise.all([
-    db.from('loyalty_settings').select('*').eq('id', 1).single(),
-    db.from('customer_loyalty').select('*').eq('customer_key', customerKey).maybeSingle(),
+    db.from('loyalty_settings').select('*').eq('restaurant_id', restaurantId).maybeSingle(),
+    db.from('customer_loyalty').select('*')
+      .eq('restaurant_id', restaurantId)
+      .eq('customer_key', customerKey).maybeSingle(),
   ]);
   const coffeePrices = items.filter(item => item.is_coffee).map(item => item.unit_price_cents);
   const freeCoffeeDiscountCents = redeemFreeCoffee && settings?.enabled && Number(balance?.free_coffees ?? 0) > 0 && coffeePrices.length

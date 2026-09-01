@@ -6,8 +6,10 @@ import {
   useEffect,
   useMemo,
   useState,
-} from "react";
-import { supabase } from "@/src/lib/supabase";
+} from 'react';
+import { supabase } from '@/src/lib/supabase';
+import { useRestaurant } from '@/src/context/RestaurantContext';
+import { useAdminAuth } from '@/src/context/AdminAuthContext';
 
 export type PaymentSettings = {
   currency: string;
@@ -21,89 +23,82 @@ type Store = PaymentSettings & {
   loading: boolean;
   error?: string;
   updateSettings: (values: Partial<PaymentSettings>) => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
-const defaults: PaymentSettings = {
-  currency: "nzd",
-  cardEnabled: true,
-  applePayEnabled: true,
-  googlePayEnabled: true,
-  payAtCounterEnabled: true,
-};
 const Context = createContext<Store | null>(null);
 
 export function PaymentSettingsProvider({ children }: PropsWithChildren) {
-  const [settings, setSettings] = useState(defaults);
-  const [loading, setLoading] = useState(true);
+  const { currentRestaurant, updateRestaurantProfile } = useRestaurant();
+  const { staff } = useAdminAuth();
+  const targetRestaurantId = staff?.restaurantId || currentRestaurant.id;
+
+  const [settings, setSettings] = useState<PaymentSettings>({
+    currency: currentRestaurant.currency || 'nzd',
+    cardEnabled: currentRestaurant.cardEnabled ?? true,
+    applePayEnabled: currentRestaurant.applePayEnabled ?? true,
+    googlePayEnabled: currentRestaurant.googlePayEnabled ?? true,
+    payAtCounterEnabled: currentRestaurant.payAtCounterEnabled ?? true,
+  });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+
   const fetchSettings = useCallback(async () => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-    const { data, error: fetchError } = await supabase
-      .from("payment_settings")
-      .select("*")
-      .eq("id", 1)
-      .single();
-    if (fetchError) setError(fetchError.message);
-    else if (data) {
+    if (!supabase) return;
+    setLoading(true);
+    const result = await supabase
+      .from('restaurants')
+      .select('currency, card_enabled, apple_pay_enabled, google_pay_enabled, pay_at_counter_enabled')
+      .eq('id', targetRestaurantId)
+      .maybeSingle();
+
+    if (result.error) {
+      setError(result.error.message);
+    } else if (result.data) {
       setSettings({
-        currency: data.currency,
-        cardEnabled: data.card_enabled,
-        applePayEnabled: data.apple_pay_enabled,
-        googlePayEnabled: data.google_pay_enabled,
-        payAtCounterEnabled: data.pay_at_counter_enabled,
+        currency: result.data.currency || 'nzd',
+        cardEnabled: result.data.card_enabled ?? true,
+        applePayEnabled: result.data.apple_pay_enabled ?? true,
+        googlePayEnabled: result.data.google_pay_enabled ?? true,
+        payAtCounterEnabled: result.data.pay_at_counter_enabled ?? true,
       });
       setError(undefined);
     }
     setLoading(false);
-  }, []);
+  }, [targetRestaurantId]);
+
   useEffect(() => {
     void fetchSettings();
-    if (!supabase) return;
-    const client = supabase;
-    const channel = client
-      .channel("payment-settings")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "payment_settings" },
-        () => void fetchSettings(),
-      )
-      .subscribe();
-    return () => {
-      void client.removeChannel(channel);
-    };
   }, [fetchSettings]);
+
   const updateSettings = async (values: Partial<PaymentSettings>) => {
-    if (!supabase) throw new Error("Supabase is not configured.");
-    const row: Record<string, unknown> = {};
-    if (values.cardEnabled !== undefined) row.card_enabled = values.cardEnabled;
-    if (values.applePayEnabled !== undefined)
-      row.apple_pay_enabled = values.applePayEnabled;
-    if (values.googlePayEnabled !== undefined)
-      row.google_pay_enabled = values.googlePayEnabled;
-    if (values.payAtCounterEnabled !== undefined)
-      row.pay_at_counter_enabled = values.payAtCounterEnabled;
-    const { error: updateError } = await supabase
-      .from("payment_settings")
-      .update(row)
-      .eq("id", 1);
-    if (updateError) throw new Error(updateError.message);
-    await fetchSettings();
+    await updateRestaurantProfile(targetRestaurantId, {
+      currency: values.currency,
+      cardEnabled: values.cardEnabled,
+      applePayEnabled: values.applePayEnabled,
+      googlePayEnabled: values.googlePayEnabled,
+      payAtCounterEnabled: values.payAtCounterEnabled,
+    });
+    setSettings((current) => ({ ...current, ...values }));
   };
+
   const value = useMemo(
-    () => ({ ...settings, loading, error, updateSettings }),
-    [settings, loading, error],
+    () => ({
+      ...settings,
+      loading,
+      error,
+      updateSettings,
+      refresh: fetchSettings,
+    }),
+    [settings, loading, error, fetchSettings],
   );
+
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 export function usePaymentSettings() {
   const value = useContext(Context);
   if (!value)
-    throw new Error(
-      "usePaymentSettings must be inside PaymentSettingsProvider",
-    );
+    throw new Error('usePaymentSettings must be used inside PaymentSettingsProvider');
   return value;
 }

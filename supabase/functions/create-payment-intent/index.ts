@@ -17,6 +17,7 @@ Deno.serve(async request => {
     if (!stripeKey.startsWith('sk_test_')) throw new Error('Stripe TEST MODE is not configured.');
     const body = await request.json();
     const idempotencyKey = String(body.idempotencyKey ?? '');
+    const restaurantId = String(body.restaurantId || 'c0000000-0000-0000-0000-000000000001');
     const customerKey = String(body.customerKey ?? '');
     const proposedOrderId = String(body.orderId ?? '');
     const orderType = body.orderType === 'table' ? 'table' : 'pickup';
@@ -24,10 +25,13 @@ Deno.serve(async request => {
     if (idempotencyKey.length < 16 || !/^LOY-[0-9a-f-]{36}$/i.test(customerKey) || !/^(CC|TB)-\d{5}$/.test(proposedOrderId))
       return json({ error: 'Invalid checkout request.' }, 400);
 
-    const { data: paymentSettings, error: settingsError } = await db.from('payment_settings').select('*').eq('id', 1).single();
-    if (settingsError) throw settingsError;
-    const enabled = paymentMethod === 'card' ? paymentSettings.card_enabled
-      : paymentMethod === 'apple_pay' ? paymentSettings.apple_pay_enabled : paymentSettings.google_pay_enabled;
+    const { data: restaurant } = await db.from('restaurants').select('*').eq('id', restaurantId).maybeSingle();
+    const cardEnabled = restaurant?.card_enabled ?? true;
+    const applePayEnabled = restaurant?.apple_pay_enabled ?? true;
+    const googlePayEnabled = restaurant?.google_pay_enabled ?? true;
+
+    const enabled = paymentMethod === 'card' ? cardEnabled
+      : paymentMethod === 'apple_pay' ? applePayEnabled : googlePayEnabled;
     if (!enabled) return json({ error: 'This online payment method is currently unavailable.' }, 400);
 
     const { data: existing } = await db.from('payment_attempts').select('*')
@@ -38,7 +42,7 @@ Deno.serve(async request => {
         amountCents: existing.amount_cents, status: existing.status });
     }
 
-    const quote = await createSecureQuote(db, body.items, customerKey, body.promoCode, body.redeemFreeCoffee === true);
+    const quote = await createSecureQuote(db, body.items, customerKey, body.promoCode, body.redeemFreeCoffee === true, restaurantId);
     if (quote.totalCents < 50) return json({ error: 'This order total is too low for online payment. Please choose Pay at Counter.' }, 400);
     const payload = {
       customer_name: String(body.customerName ?? '').trim().slice(0, 100),

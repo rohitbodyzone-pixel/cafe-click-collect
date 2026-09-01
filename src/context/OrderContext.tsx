@@ -6,15 +6,16 @@ import {
   useEffect,
   useMemo,
   useState,
-} from "react";
-import { Product } from "@/src/data/products";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { isSupabaseConfigured, supabase } from "@/src/lib/supabase";
-import { CafeTable } from "@/src/context/TableContext";
-import { SelectedCustomisation } from "@/src/context/CustomisationContext";
-import { useLoyalty } from "@/src/context/LoyaltyContext";
-import { usePaymentSettings } from "@/src/context/PaymentSettingsContext";
-import { useAdminAuth } from "@/src/context/AdminAuthContext";
+} from 'react';
+import { Product } from '@/src/data/products';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isSupabaseConfigured, supabase } from '@/src/lib/supabase';
+import { CafeTable } from '@/src/context/TableContext';
+import { SelectedCustomisation } from '@/src/context/CustomisationContext';
+import { useLoyalty } from '@/src/context/LoyaltyContext';
+import { usePaymentSettings } from '@/src/context/PaymentSettingsContext';
+import { useAdminAuth } from '@/src/context/AdminAuthContext';
+import { useRestaurant } from '@/src/context/RestaurantContext';
 
 export type CartItem = {
   cartKey: string;
@@ -24,13 +25,30 @@ export type CartItem = {
   customisations: SelectedCustomisation[];
   unitPrice: number;
 };
-export type OrderStatus = "Incoming" | "Preparing" | "Ready" | "Collected";
-export type OrderMode = "pickup" | "table";
+export type OrderStatus =
+  | 'Incoming'
+  | 'Preparing'
+  | 'Ready'
+  | 'Collected'
+  | 'Cancelled';
+export type OrderMode = 'pickup' | 'table';
 export type PaymentMethod =
-  "card" | "apple_pay" | "google_pay" | "pay_at_counter";
-export type PaymentStatus = "paid" | "unpaid" | "failed" | "refunded";
+  | 'card'
+  | 'apple_pay'
+  | 'google_pay'
+  | 'pay_at_counter';
+export type PaymentStatus = 'paid' | 'unpaid' | 'failed' | 'refunded';
+
 export type Order = {
   id: string;
+  restaurantId: string;
+  restaurant?: {
+    id: string;
+    name: string;
+    slug: string;
+    phone: string;
+    address: string;
+  };
   customerKey?: string;
   items: CartItem[];
   orderType: OrderMode;
@@ -84,7 +102,7 @@ type Store = {
   startOnlinePayment: (
     name: string,
     phone: string,
-    method: Exclude<PaymentMethod, "pay_at_counter">,
+    method: Exclude<PaymentMethod, 'pay_at_counter'>,
   ) => Promise<{
     orderId: string;
     checkoutToken: string;
@@ -94,10 +112,20 @@ type Store = {
   cancelOnlinePayment: (checkoutToken: string) => Promise<void>;
   finishOnlinePayment: (orderId: string) => Promise<Order>;
   updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
+  markOrderPaid: (id: string) => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 type OrderRow = {
   id: string;
+  restaurant_id: string;
+  restaurant?: {
+    id: string;
+    name: string;
+    slug: string;
+    phone: string;
+    address: string;
+  };
   customer_name: string;
   customer_key?: string | null;
   phone: string;
@@ -136,15 +164,18 @@ const Context = createContext<Store | null>(null);
 function rowToOrder(row: OrderRow): Order {
   return {
     id: row.id,
+    restaurantId: row.restaurant_id,
+    restaurant: row.restaurant,
     customerKey: row.customer_key ?? undefined,
     customerName: row.customer_name,
     phone: row.phone,
-    orderType: row.order_type ?? "pickup",
+    orderType: row.order_type ?? 'pickup',
     orderNotes: row.order_notes ?? undefined,
     table:
       row.table_id && row.table_code && row.table_name
         ? {
             id: row.table_id,
+            restaurantId: row.restaurant_id,
             code: row.table_code,
             name: row.table_name,
             active: true,
@@ -161,8 +192,8 @@ function rowToOrder(row: OrderRow): Order {
     total: row.total_cents / 100,
     status: row.status,
     createdAt: row.created_at,
-    paymentMethod: row.payment_method ?? "pay_at_counter",
-    paymentStatus: row.payment_status ?? "unpaid",
+    paymentMethod: row.payment_method ?? 'pay_at_counter',
+    paymentStatus: row.payment_status ?? 'unpaid',
     amountPaid: (row.amount_paid_cents ?? 0) / 100,
     items: (row.order_items ?? []).map((item) => ({
       cartKey: `saved-${item.id}`,
@@ -170,9 +201,9 @@ function rowToOrder(row: OrderRow): Order {
         id: item.product_id,
         name: item.product_name,
         price: item.unit_price_cents / 100,
-        description: "",
-        emoji: "☕",
-        category: "Food",
+        description: '',
+        emoji: '☕',
+        category: 'Food',
         soldOut: false,
         customisationGroupIds: [],
       },
@@ -182,11 +213,11 @@ function rowToOrder(row: OrderRow): Order {
           item.notes,
           ...(item.selected_customisations ?? []).map(
             (option) =>
-              `${option.groupName}: ${option.optionName}${option.price ? ` (+$${option.price.toFixed(2)})` : ""}`,
+              `${option.groupName}: ${option.optionName}${option.price ? ` (+$${option.price.toFixed(2)})` : ''}`,
           ),
         ]
           .filter(Boolean)
-          .join(" · ") || undefined,
+          .join(' · ') || undefined,
       customisations: item.selected_customisations ?? [],
       unitPrice: item.unit_price_cents / 100,
     })),
@@ -194,7 +225,10 @@ function rowToOrder(row: OrderRow): Order {
 }
 
 export function OrderProvider({ children }: PropsWithChildren) {
-  const { staff } = useAdminAuth();
+  const { currentRestaurant } = useRestaurant();
+  const { staff, isSuperAdmin } = useAdminAuth();
+  const targetRestaurantId = staff?.restaurantId || currentRestaurant.id;
+
   const {
     customerKey,
     promos,
@@ -203,80 +237,120 @@ export function OrderProvider({ children }: PropsWithChildren) {
     refresh: refreshLoyalty,
   } = useLoyalty();
   const { payAtCounterEnabled } = usePaymentSettings();
+
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [pickupTime, setPickupTimeValue] = useState("");
+  const [pickupTime, setPickupTimeValue] = useState('');
   const [pickupSlot, setPickupSlot] = useState<string>();
-  const [orderMode, setOrderModeValue] = useState<OrderMode>("pickup");
+  const [orderMode, setOrderModeValue] = useState<OrderMode>('pickup');
   const [table, setTable] = useState<CafeTable>();
-  const [orderNotes, setOrderNotes] = useState("");
-  const [promoCode, setPromoCode] = useState("");
+  const [orderNotes, setOrderNotes] = useState('');
+  const [promoCode, setPromoCode] = useState('');
   const [redeemFreeCoffee, setRedeemFreeCoffee] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(isSupabaseConfigured);
   const [backendError, setBackendError] = useState<string>();
 
   useEffect(() => {
-    void AsyncStorage.getItem("cafe-order-mode").then((saved) => {
-      if (!saved) return;
+    void AsyncStorage.getItem(`cafe-order-mode-${currentRestaurant.id}`).then((saved) => {
+      if (!saved) {
+        // Clear table mode if switching restaurant
+        setOrderModeValue('pickup');
+        setTable(undefined);
+        return;
+      }
       try {
         const value = JSON.parse(saved) as { mode?: OrderMode; table?: CafeTable };
-        if (value.mode === "table" && value.table?.id) {
-          setOrderModeValue("table");
+        if (value.mode === 'table' && value.table?.id) {
+          setOrderModeValue('table');
           setTable(value.table);
+        } else {
+          setOrderModeValue('pickup');
+          setTable(undefined);
         }
       } catch {
-        void AsyncStorage.removeItem("cafe-order-mode");
+        void AsyncStorage.removeItem(`cafe-order-mode-${currentRestaurant.id}`);
       }
     });
-  }, []);
+  }, [currentRestaurant.id]);
 
   const fetchOrders = useCallback(async () => {
     if (!supabase) {
       setBackendError(
-        "Supabase is not configured. Add the required EXPO_PUBLIC_ environment variables.",
+        'Supabase is not configured. Add the required EXPO_PUBLIC_ environment variables.',
       );
       setLoadingOrders(false);
       return;
     }
-    const { data, error } = staff
-      ? await supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false })
-      : await supabase.rpc("get_customer_orders", { p_customer_key: customerKey });
-    if (error) setBackendError(error.message);
-    else {
-      setOrders((data as OrderRow[]).map(rowToOrder));
+
+    let result;
+    if (staff) {
+      let query = supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .order('created_at', { ascending: false });
+
+      if (!isSuperAdmin && staff.restaurantId) {
+        query = query.eq('restaurant_id', staff.restaurantId);
+      } else if (staff.restaurantId) {
+        query = query.eq('restaurant_id', staff.restaurantId);
+      }
+      result = await query;
+    } else {
+      result = await supabase.rpc('get_customer_orders', {
+        p_customer_key: customerKey,
+        p_restaurant_id: currentRestaurant.id,
+      });
+    }
+
+    if (result.error) {
+      setBackendError(result.error.message);
+    } else {
+      setOrders(((result.data as OrderRow[]) || []).map(rowToOrder));
       setBackendError(undefined);
     }
     setLoadingOrders(false);
-  }, [customerKey, staff]);
+  }, [customerKey, staff, isSuperAdmin, currentRestaurant.id]);
 
   useEffect(() => {
+    setLoadingOrders(true);
     void fetchOrders();
     if (!supabase) return;
     const client = supabase;
     const channel = staff
-      ? client.channel("cafe-orders-admin")
-          .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => void fetchOrders())
-          .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => void fetchOrders())
+      ? client
+          .channel(`restaurant-orders-${targetRestaurantId}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'orders' },
+            () => void fetchOrders(),
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'order_items' },
+            () => void fetchOrders(),
+          )
           .subscribe()
-      : client.channel(`customer-order:${customerKey}`)
-          .on("broadcast", { event: "order-change" }, () => void fetchOrders())
+      : client
+          .channel(`customer-order:${customerKey}`)
+          .on('broadcast', { event: 'order-change' }, () => void fetchOrders())
           .subscribe();
+
     return () => {
       void client.removeChannel(channel);
     };
-  }, [fetchOrders]);
+  }, [fetchOrders, staff, targetRestaurantId, customerKey]);
 
   const addToCart = (
     product: Product,
     quantity = 1,
-    notes = "",
+    notes = '',
     customisations: SelectedCustomisation[] = [],
   ) =>
     setCart((current) => {
       const signature = customisations
         .map((item) => item.optionId)
         .sort()
-        .join("-");
+        .join('-');
       const cartKey = `${product.id}:${signature}:${notes}`;
       const unitPrice =
         product.price +
@@ -293,6 +367,7 @@ export function OrderProvider({ children }: PropsWithChildren) {
         { cartKey, product, quantity, notes, customisations, unitPrice },
       ];
     });
+
   const setQuantity = (id: string, quantity: number) =>
     setCart((current) =>
       current
@@ -301,10 +376,10 @@ export function OrderProvider({ children }: PropsWithChildren) {
     );
 
   const placeOrder = async (customerName: string, phone: string) => {
-    if (!supabase) throw new Error("Supabase is not configured.");
+    if (!supabase) throw new Error('Supabase is not configured.');
     if (!payAtCounterEnabled)
       throw new Error(
-        "Pay at Counter / Pickup is currently unavailable. Please pay online.",
+        'Pay at Counter / Pickup is currently unavailable. Please pay online.',
       );
     const subtotal = cart.reduce(
       (sum, item) => sum + item.unitPrice * item.quantity,
@@ -318,13 +393,16 @@ export function OrderProvider({ children }: PropsWithChildren) {
         (!item.expiresAt || new Date(item.expiresAt) >= new Date()),
     );
     const promoDiscount = promo
-      ? promo.discountType === "percent"
+      ? promo.discountType === 'percent'
         ? (subtotal * promo.discountValue) / 100
         : promo.discountValue
       : 0;
-    const coffees = cart.filter((item) => item.product.category === "Coffee");
+    const coffees = cart.filter((item) => item.product.category === 'Coffee');
     const freeCoffeeDiscount =
-      redeemFreeCoffee && settings.enabled && balance.freeCoffees > 0 && coffees.length
+      redeemFreeCoffee &&
+      settings.enabled &&
+      balance.freeCoffees > 0 &&
+      coffees.length
         ? Math.min(
             ...coffees.map((item) => item.unitPrice),
             settings.freeCoffeeMaxCents / 100,
@@ -332,15 +410,17 @@ export function OrderProvider({ children }: PropsWithChildren) {
         : 0;
     const discount = Math.min(subtotal, promoDiscount + freeCoffeeDiscount);
     const netTotal = subtotal - discount;
+
     const order: Order = {
-      id: `${orderMode === "table" ? "TB" : "CC"}-${String(Date.now()).slice(-5)}`,
+      id: `${orderMode === 'table' ? 'TB' : 'CC'}-${String(Date.now()).slice(-5)}`,
+      restaurantId: currentRestaurant.id,
       customerKey,
       items: [...cart],
-      pickupTime: orderMode === "table" ? "Table service" : pickupTime,
-      pickupSlot: orderMode === "pickup" ? pickupSlot : undefined,
+      pickupTime: orderMode === 'table' ? 'Table service' : pickupTime,
+      pickupSlot: orderMode === 'pickup' ? pickupSlot : undefined,
       customerName:
-        orderMode === "table" ? table?.name || "Table order" : customerName,
-      phone: orderMode === "table" ? "Table order" : phone,
+        orderMode === 'table' ? table?.name || 'Table order' : customerName,
+      phone: orderMode === 'table' ? 'Table order' : phone,
       orderType: orderMode,
       table,
       orderNotes: orderNotes.trim() || undefined,
@@ -351,40 +431,45 @@ export function OrderProvider({ children }: PropsWithChildren) {
       pointsEarned: Math.floor(netTotal * settings.pointsPerDollar),
       pointsRedeemed: freeCoffeeDiscount > 0 ? 1 : 0,
       total: netTotal,
-      status: "Incoming",
+      status: 'Incoming',
       createdAt: new Date().toISOString(),
-      paymentMethod: "pay_at_counter",
-      paymentStatus: "unpaid",
+      paymentMethod: 'pay_at_counter',
+      paymentStatus: 'unpaid',
       amountPaid: 0,
     };
-    if (orderMode === "pickup" && !pickupSlot)
-      throw new Error("Please select a pickup time.");
-    if (orderMode === "table" && !table)
-      throw new Error("Open this menu using your table QR code.");
+
+    if (orderMode === 'pickup' && !pickupSlot)
+      throw new Error('Please select a pickup time.');
+    if (orderMode === 'table' && !table)
+      throw new Error('Open this menu using your table QR code.');
+
     const items = order.items.map((item) => ({
       product_id: item.product.id,
       product_name: item.product.name,
       unit_price_cents: Math.round(item.unitPrice * 100),
       quantity: item.quantity,
-      notes: item.notes || "",
+      notes: item.notes || '',
       selected_customisations: item.customisations,
-      is_coffee: item.product.category === "Coffee",
+      is_coffee: item.product.category === 'Coffee',
     }));
+
     const rewards = {
       p_customer_key: customerKey,
       p_promo_code: promoCode.trim() || null,
       p_redeem_free_coffee: redeemFreeCoffee,
+      p_restaurant_id: currentRestaurant.id,
     };
+
     const request =
-      orderMode === "table"
-        ? supabase.rpc("place_table_order", {
+      orderMode === 'table'
+        ? supabase.rpc('place_table_order', {
             p_id: order.id,
             p_table_id: table!.id,
             p_order_notes: orderNotes.trim(),
             p_items: items,
             ...rewards,
           })
-        : supabase.rpc("place_cafe_order", {
+        : supabase.rpc('place_cafe_order', {
             p_id: order.id,
             p_customer_name: order.customerName,
             p_phone: order.phone,
@@ -393,15 +478,17 @@ export function OrderProvider({ children }: PropsWithChildren) {
             p_items: items,
             ...rewards,
           });
+
     const { error: orderError } = await request;
     if (orderError) throw new Error(orderError.message);
+
     setOrders((current) => [
       order,
       ...current.filter((item) => item.id !== order.id),
     ]);
     setCart([]);
-    setOrderNotes("");
-    setPromoCode("");
+    setOrderNotes('');
+    setPromoCode('');
     setRedeemFreeCoffee(false);
     void refreshLoyalty();
     return order;
@@ -410,36 +497,39 @@ export function OrderProvider({ children }: PropsWithChildren) {
   const startOnlinePayment = async (
     customerName: string,
     phone: string,
-    paymentMethod: Exclude<PaymentMethod, "pay_at_counter">,
+    paymentMethod: Exclude<PaymentMethod, 'pay_at_counter'>,
   ) => {
-    if (!supabase) throw new Error("Supabase is not configured.");
-    if (orderMode === "pickup" && !pickupSlot)
-      throw new Error("Please select a pickup time.");
-    if (orderMode === "table" && !table)
-      throw new Error("Open this menu using your table QR code.");
-    const orderId = `${orderMode === "table" ? "TB" : "CC"}-${String(Date.now()).slice(-5)}`;
+    if (!supabase) throw new Error('Supabase is not configured.');
+    if (orderMode === 'pickup' && !pickupSlot)
+      throw new Error('Please select a pickup time.');
+    if (orderMode === 'table' && !table)
+      throw new Error('Open this menu using your table QR code.');
+
+    const orderId = `${orderMode === 'table' ? 'TB' : 'CC'}-${String(Date.now()).slice(-5)}`;
     const idempotencyKey = `${orderId}-${customerKey}-${Date.now()}`;
     const items = cart.map((item) => ({
       product_id: item.product.id,
       quantity: item.quantity,
-      notes: item.notes || "",
+      notes: item.notes || '',
       selected_customisations: item.customisations.map((option) => ({
         optionId: option.optionId,
       })),
     }));
+
     const { data, error } = await supabase.functions.invoke(
-      "create-payment-intent",
+      'create-payment-intent',
       {
         body: {
           idempotencyKey,
           customerKey,
+          restaurantId: currentRestaurant.id,
           orderId,
           orderType: orderMode,
           paymentMethod,
-          customerName: orderMode === "table" ? table?.name : customerName,
-          phone: orderMode === "table" ? "Table order" : phone,
-          pickupTime: orderMode === "table" ? "Table service" : pickupTime,
-          pickupSlot: orderMode === "pickup" ? pickupSlot : null,
+          customerName: orderMode === 'table' ? table?.name : customerName,
+          phone: orderMode === 'table' ? 'Table order' : phone,
+          pickupTime: orderMode === 'table' ? 'Table service' : pickupTime,
+          pickupSlot: orderMode === 'pickup' ? pickupSlot : null,
           tableId: table?.id ?? null,
           orderNotes,
           items,
@@ -451,7 +541,8 @@ export function OrderProvider({ children }: PropsWithChildren) {
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     if (!data?.clientSecret || (!data?.orderId && !orderId))
-      throw new Error("Stripe did not return a secure payment session.");
+      throw new Error('Stripe did not return a secure payment session.');
+
     return {
       orderId,
       checkoutToken: data.checkoutToken as string,
@@ -461,9 +552,9 @@ export function OrderProvider({ children }: PropsWithChildren) {
   };
 
   const cancelOnlinePayment = async (checkoutToken: string) => {
-    if (!supabase) throw new Error("Supabase is not configured.");
+    if (!supabase) throw new Error('Supabase is not configured.');
     const { data, error } = await supabase.functions.invoke(
-      "cancel-payment-intent",
+      'cancel-payment-intent',
       { body: { checkoutToken, customerKey } },
     );
     if (error) throw new Error(error.message);
@@ -471,20 +562,25 @@ export function OrderProvider({ children }: PropsWithChildren) {
   };
 
   const finishOnlinePayment = async (orderId: string) => {
-    if (!supabase) throw new Error("Supabase is not configured.");
+    if (!supabase) throw new Error('Supabase is not configured.');
     for (let attempt = 0; attempt < 20; attempt++) {
-      const { data: visibleOrders, error } = await supabase.rpc("get_customer_orders", { p_customer_key: customerKey });
-      const data = (visibleOrders as OrderRow[] | null)?.find((row) => row.id === orderId);
+      const { data: visibleOrders, error } = await supabase.rpc(
+        'get_customer_orders',
+        { p_customer_key: customerKey, p_restaurant_id: currentRestaurant.id },
+      );
+      const data = (visibleOrders as OrderRow[] | null)?.find(
+        (row) => row.id === orderId,
+      );
       if (error) throw new Error(error.message);
-      if (data?.payment_status === "paid") {
+      if (data?.payment_status === 'paid') {
         const order = rowToOrder(data as OrderRow);
         setOrders((current) => [
           order,
           ...current.filter((item) => item.id !== order.id),
         ]);
         setCart([]);
-        setOrderNotes("");
-        setPromoCode("");
+        setOrderNotes('');
+        setPromoCode('');
         setRedeemFreeCoffee(false);
         void refreshLoyalty();
         return order;
@@ -492,20 +588,43 @@ export function OrderProvider({ children }: PropsWithChildren) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     throw new Error(
-      "Payment is processing. Your order will appear as soon as Stripe confirms it.",
+      'Payment is processing. Your order will appear as soon as Stripe confirms it.',
     );
   };
 
   const updateOrderStatus = async (id: string, status: OrderStatus) => {
-    if (!supabase) throw new Error("Supabase is not configured.");
+    if (!supabase) throw new Error('Supabase is not configured.');
     const previous = orders;
     setOrders((current) =>
       current.map((order) => (order.id === id ? { ...order, status } : order)),
     );
     const { error } = await supabase
-      .from("orders")
+      .from('orders')
       .update({ status })
-      .eq("id", id);
+      .eq('id', id);
+    if (error) {
+      setOrders(previous);
+      throw new Error(error.message);
+    }
+  };
+
+  const markOrderPaid = async (id: string) => {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const previous = orders;
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === id
+          ? {
+              ...order,
+              paymentStatus: 'paid',
+              amountPaid: order.total,
+            }
+          : order,
+      ),
+    );
+    const { error } = await supabase.rpc('mark_order_paid', {
+      p_order_id: id,
+    });
     if (error) {
       setOrders(previous);
       throw new Error(error.message);
@@ -516,11 +635,16 @@ export function OrderProvider({ children }: PropsWithChildren) {
     setPickupTimeValue(time);
     setPickupSlot(slot);
   };
+
   const setOrderMode = (mode: OrderMode, selectedTable?: CafeTable) => {
     setOrderModeValue(mode);
-    setTable(mode === "table" ? selectedTable : undefined);
-    void AsyncStorage.setItem("cafe-order-mode", JSON.stringify({ mode, table: mode === "table" ? selectedTable : undefined }));
+    setTable(mode === 'table' ? selectedTable : undefined);
+    void AsyncStorage.setItem(
+      `cafe-order-mode-${currentRestaurant.id}`,
+      JSON.stringify({ mode, table: mode === 'table' ? selectedTable : undefined }),
+    );
   };
+
   const value = useMemo(
     () => ({
       cart,
@@ -548,6 +672,8 @@ export function OrderProvider({ children }: PropsWithChildren) {
       cancelOnlinePayment,
       finishOnlinePayment,
       updateOrderStatus,
+      markOrderPaid,
+      refresh: fetchOrders,
     }),
     [
       cart,
@@ -562,13 +688,15 @@ export function OrderProvider({ children }: PropsWithChildren) {
       loadingOrders,
       backendError,
       payAtCounterEnabled,
+      fetchOrders,
     ],
   );
+
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 export function useOrders() {
   const value = useContext(Context);
-  if (!value) throw new Error("useOrders must be used inside OrderProvider");
+  if (!value) throw new Error('useOrders must be used inside OrderProvider');
   return value;
 }
