@@ -40,10 +40,11 @@ export function AdminGate({ children }: PropsWithChildren) {
     }
     setBusy(true);
     setMessage('');
-    const redirectTo =
+    const baseUrl =
       Platform.OS === 'web' && typeof window !== 'undefined'
-        ? `${window.location.origin}/admin-reset-password`
-        : Linking.createURL('/admin-reset-password');
+        ? `${window.location.origin}${window.location.pathname.startsWith('/cafe-click-collect') ? '/cafe-click-collect' : ''}`
+        : 'https://rohitbodyzone-pixel.github.io/cafe-click-collect';
+    const redirectTo = `${baseUrl}/admin-reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(
       email.trim().toLowerCase(),
       { redirectTo },
