@@ -6,6 +6,7 @@ web-build/
 .DS_Store
 .env*
 !.env.example
+*.local
 .supabase-access-token.local
 .admin-new-password.local
 .admin-login.local
