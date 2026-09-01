@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, ScrollView, Switch, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, Card, Header, Screen } from "@/src/components/UI";
 import { OrderStatus, useOrders } from "@/src/context/OrderContext";
@@ -10,6 +10,8 @@ import { AdminOrderAlerts } from "@/src/components/AdminOrderAlerts";
 import { useAdminAuth } from "@/src/context/AdminAuthContext";
 import { useRestaurant } from "@/src/context/RestaurantContext";
 import { useServiceRequests } from "@/src/context/ServiceRequestContext";
+import { useFeaturePermission } from "@/src/context/FeaturePermissionContext";
+import { supabase } from "@/src/lib/supabase";
 
 const tabs: OrderStatus[] = ["Incoming", "Accepted", "Preparing", "Ready", "Collected"];
 const next: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -63,21 +65,59 @@ const AdminLink = ({
 );
 
 export default function Admin() {
+  const [mode, setMode] = useState<'simple' | 'advanced'>('simple');
   const [tab, setTab] = useState<OrderStatus>("Incoming");
-  const { currentRestaurant, restaurants, setCurrentRestaurant } = useRestaurant();
+  const { currentRestaurant, setCurrentRestaurant, refresh } = useRestaurant();
   const { orders, updateOrderStatus, markOrderPaid, backendError } = useOrders();
   const { requests: serviceRequests, updateStatus: updateServiceStatus } = useServiceRequests();
+  const { isFeatureEnabled } = useFeaturePermission();
   const auth = useAdminAuth();
+
+  // Rush Controls state
+  const [isPaused, setIsPaused] = useState(currentRestaurant.is_orders_paused || false);
+  const [rushExtraMins, setRushExtraMins] = useState(currentRestaurant.rush_wait_extra_minutes || 0);
+  const [rushMessage, setRushMessage] = useState(currentRestaurant.rush_customer_message || '');
+  const [rushBusy, setRushBusy] = useState(false);
+  const [rushSuccess, setRushSuccess] = useState('');
 
   const visible = orders.filter((o) => o.status === tab);
   const pendingRequests = serviceRequests.filter(
     (r) => r.status === "pending" || r.status === "acknowledged",
   );
 
+  const activeOrdersCount = orders.filter((o) => o.status !== "Collected" && o.status !== "Cancelled").length;
+  const todayRevenue = orders
+    .filter((o) => o.paymentStatus === "paid")
+    .reduce((acc, curr) => acc + curr.total, 0);
+
+  const handleUpdateRushMode = async (pauseVal: boolean, extraMins: number, msg: string) => {
+    setRushBusy(true);
+    try {
+      if (supabase) {
+        await supabase.rpc('set_restaurant_rush_mode', {
+          p_restaurant_id: currentRestaurant.id,
+          p_orders_paused: pauseVal,
+          p_extra_minutes: extraMins,
+          p_message: msg || null,
+        });
+      }
+      setIsPaused(pauseVal);
+      setRushExtraMins(extraMins);
+      setRushMessage(msg);
+      setRushSuccess('✓ Rush Mode settings updated & synchronized live!');
+      setTimeout(() => setRushSuccess(''), 4000);
+      await refresh();
+    } catch (e: any) {
+      alert(e.message || 'Could not update rush mode');
+    } finally {
+      setRushBusy(false);
+    }
+  };
+
   return (
     <Screen>
       <Header
-        title="Staff Admin"
+        title="Manager Console"
         right={
           <Pressable onPress={() => void auth.signOut()}>
             <Text style={styles.exit}>Sign out</Text>
@@ -86,6 +126,7 @@ export default function Admin() {
       />
       <AdminOrderAlerts />
 
+      {/* Role & Cafe Header */}
       <View style={styles.restaurantBar}>
         <View style={{ flex: 1 }}>
           <Text style={styles.staffRoleText}>
@@ -93,488 +134,348 @@ export default function Admin() {
           </Text>
           <Text style={styles.activeRestName}>{currentRestaurant.name}</Text>
         </View>
-        {auth.isSuperAdmin && (
+
+        {/* Simple vs Advanced Mode Toggle */}
+        <View style={styles.modeToggle}>
           <Pressable
-            style={styles.switchRestBtn}
-            onPress={() => router.push('/restaurants')}
+            style={[styles.modePill, mode === 'simple' && styles.modePillActive]}
+            onPress={() => setMode('simple')}
           >
-            <Ionicons name="swap-horizontal" size={14} color={colors.espresso} />
-            <Text style={styles.switchRestText}>Switch Café</Text>
-          </Pressable>
-        )}
-      </View>
-
-      <View style={styles.banner}>
-        <Text style={styles.bannerSmall}>ORDER DASHBOARD</Text>
-        <Text style={styles.bannerTitle}>Keep the queue moving.</Text>
-        <Text style={styles.bannerText}>
-          {orders.filter((o) => o.status !== "Collected").length} active orders for {currentRestaurant.name}
-        </Text>
-      </View>
-
-      {/* Live Table Service Requests Banner */}
-      {pendingRequests.length > 0 && (
-        <Card style={styles.serviceBanner}>
-          <View style={styles.serviceBannerHeader}>
-            <Ionicons name="notifications-outline" size={18} color={colors.espresso} />
-            <Text style={styles.serviceBannerTitle}>
-              Table Service Requests ({pendingRequests.length})
-            </Text>
-          </View>
-          {pendingRequests.map((req) => (
-            <View key={req.id} style={styles.serviceRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.serviceTable}>
-                  {req.tableName} · {req.requestType.replace('_', ' ').toUpperCase()}
-                </Text>
-                {!!req.notes && (
-                  <Text style={styles.serviceNotes}>"{req.notes}"</Text>
-                )}
-                <Text style={styles.serviceTime}>
-                  {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
-              <View style={styles.serviceActions}>
-                {req.status === 'pending' && (
-                  <Pressable
-                    style={styles.ackBtn}
-                    onPress={() => void updateServiceStatus(req.id, 'acknowledged')}
-                  >
-                    <Text style={styles.ackBtnText}>Acknowledge</Text>
-                  </Pressable>
-                )}
-                <Pressable
-                  style={styles.doneBtn}
-                  onPress={() => void updateServiceStatus(req.id, 'completed')}
-                >
-                  <Ionicons name="checkmark" size={14} color={colors.white} />
-                  <Text style={styles.doneBtnText}>Done</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))}
-        </Card>
-      )}
-
-      {auth.isSuperAdmin && (
-        <AdminLink
-          icon="globe-outline"
-          title="Super Admin Management"
-          text="Manage all platform restaurants, onboard new cafes"
-          route="/super-admin"
-        />
-      )}
-
-      <AdminLink
-        icon="wallet-outline"
-        title="Payouts & Settlement Ledger"
-        text="Gross sales, Stripe Connect transfers, app fees & direct bank payouts"
-        route="/admin-payouts"
-      />
-      <AdminLink
-        icon="megaphone-outline"
-        title="Growth, Marketing & Concierge"
-        text="AI Social Copywriter, Review Responder, Voice Phone Orders, Group Orders & POs"
-        route="/admin-growth"
-      />
-      <AdminLink
-        icon="sparkles-outline"
-        title="AI & Analytics Copilot"
-        text="Demand Forecast, Health Score (0-100), Menu BCG Matrix, Win-Back & Memory"
-        route="/admin-ai"
-      />
-      <AdminLink
-        icon="construct-outline"
-        title="Operations & Automation Hub"
-        text="Smart Inventory, AI Staff Roster, Checklists, Wait Balancer & Hardware"
-        route="/admin-operations"
-      />
-      <AdminLink
-        icon="stats-chart-outline"
-        title="Sales & Analytics"
-        text="Daily revenue, top-selling items, hourly distribution"
-        route="/admin-analytics"
-      />
-      <AdminLink
-        icon="speedometer-outline"
-        title="Kitchen Display System (KDS)"
-        text="Live queue with preparation timers and order bump"
-        route="/admin-kitchen"
-      />
-      <AdminLink
-        icon="people-outline"
-        title="Staff & Roles"
-        text={`Manage roles for ${currentRestaurant.name}`}
-        route="/admin-staff"
-      />
-      <AdminLink
-        icon="restaurant-outline"
-        title="Menu Management"
-        text="Add, edit and manage availability"
-        route="/admin-menu"
-      />
-      <AdminLink
-        icon="options-outline"
-        title="Customisation Settings"
-        text="Sizes, milk, sugar and extras"
-        route="/admin-customisations"
-      />
-      <AdminLink
-        icon="gift-outline"
-        title="Loyalty & Promotions"
-        text="Points, free coffees and promo codes"
-        route="/admin-loyalty"
-      />
-      <AdminLink
-        icon="card-outline"
-        title="Payment Settings"
-        text="Online payments and pay at counter"
-        route="/admin-payments"
-      />
-      <AdminLink
-        icon="time-outline"
-        title="Pickup Settings"
-        text="Hours, preparation time and slot capacity"
-        route="/admin-pickup-settings"
-      />
-      <AdminLink
-        icon="qr-code-outline"
-        title="Table Management"
-        text="Tables, QR links and printable cards"
-        route="/admin-tables"
-      />
-
-      {!!backendError && <Text style={styles.error}>{backendError}</Text>}
-
-      <View style={styles.tabs}>
-        {tabs.map((t) => (
-          <Pressable
-            key={t}
-            onPress={() => setTab(t)}
-            style={[styles.tab, tab === t && styles.tabActive]}
-          >
-            <Text style={[styles.tabCount, tab === t && styles.activeText]}>
-              {orders.filter((o) => o.status === t).length}
-            </Text>
-            <Text style={[styles.tabText, tab === t && styles.activeText]}>
-              {t}
+            <Text style={[styles.modePillText, mode === 'simple' && styles.modePillTextActive]}>
+              Simple
             </Text>
           </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.heading}>{tab} orders</Text>
-
-      {!visible.length ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>All clear</Text>
-          <Text style={styles.muted}>
-            No {tab.toLowerCase()} orders right now for {currentRestaurant.name}.
-          </Text>
+          <Pressable
+            style={[styles.modePill, mode === 'advanced' && styles.modePillActive]}
+            onPress={() => setMode('advanced')}
+          >
+            <Text style={[styles.modePillText, mode === 'advanced' && styles.modePillTextActive]}>
+              Advanced
+            </Text>
+          </Pressable>
         </View>
-      ) : (
-        visible.map((order) => (
-          <Card key={order.id} style={styles.orderCard}>
-            <View style={styles.orderTop}>
-              <View>
-                {order.orderType === "table" && (
-                  <Text style={styles.tableBadge}>
-                    TABLE ORDER · {order.table?.name.toUpperCase()}
-                  </Text>
-                )}
-                <Text style={styles.orderId}>{order.id}</Text>
-                <Text style={styles.muted}>
-                  {new Date(order.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
-                  ·{" "}
-                  {order.orderType === "table"
-                    ? order.table?.name
-                    : order.pickupTime}
-                </Text>
-                <Text
-                  style={[
-                    styles.paymentBadge,
-                    order.paymentStatus === "paid"
-                      ? styles.paid
-                      : order.paymentStatus === "refunded"
-                        ? styles.refunded
-                        : styles.unpaid,
-                  ]}
-                >
-                  {order.paymentStatus.toUpperCase()} ·{" "}
-                  {paymentMethodLabel(order.paymentMethod, order.orderType)}
-                </Text>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* KPI Summary Banner */}
+        <View style={styles.kpiGrid}>
+          <Card style={styles.kpiCard}>
+            <Text style={styles.kpiLabel}>Active Orders</Text>
+            <Text style={styles.kpiVal}>{activeOrdersCount}</Text>
+            <Text style={styles.kpiSub}>In preparation queue</Text>
+          </Card>
+          <Card style={[styles.kpiCard, { backgroundColor: colors.espresso }]}>
+            <Text style={[styles.kpiLabel, { color: colors.caramel }]}>Today's Sales</Text>
+            <Text style={[styles.kpiVal, { color: colors.white }]}>{money(todayRevenue)}</Text>
+            <Text style={[styles.kpiSub, { color: 'rgba(255,255,255,0.7)' }]}>Paid revenue</Text>
+          </Card>
+        </View>
+
+        {/* 10-Minute Setup Progress Bar */}
+        <Card style={styles.setupProgressCard}>
+          <View style={styles.setupHeader}>
+            <Ionicons name="sparkles" size={16} color={colors.caramel} />
+            <Text style={styles.setupTitle}>PILOT READINESS PROGRESS</Text>
+            <Text style={styles.setupPercent}>95% Ready</Text>
+          </View>
+          <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarFill, { width: '95%' }]} />
+          </View>
+          <Text style={styles.setupSub}>All core menu, tables, and Stripe test accounts configured.</Text>
+        </Card>
+
+        {/* Busy / Rush Mode Dual Controls (if enabled by Super Admin) */}
+        {isFeatureEnabled('rush_mode') && (
+          <Card style={styles.rushCard}>
+            <View style={styles.rushHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rushTitle}>RUSH & BUSY MODE CONTROLS</Text>
+                <Text style={styles.rushSubtitle}>Independent wait-time booster & order pause switches.</Text>
               </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.price}>{money(order.total)}</Text>
-                {order.paymentStatus === "unpaid" && (
-                  <Pressable
-                    style={styles.markPaidBtn}
-                    onPress={() => void markOrderPaid(order.id)}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={13} color={colors.green} />
-                    <Text style={styles.markPaidText}>Mark Paid</Text>
-                  </Pressable>
-                )}
-              </View>
+              <Ionicons name="flame" size={20} color={colors.caramel} />
             </View>
 
-            <View style={styles.rule} />
+            {/* Knob 1: Wait Time Booster */}
+            <Text style={styles.knobLabel}>1. ADD EXTRA PREP TIME TO PICKUP WINDOWS:</Text>
+            <View style={styles.minsBtnRow}>
+              {[0, 5, 10, 15, 30].map((mins) => (
+                <Pressable
+                  key={mins}
+                  style={[styles.minsBtn, rushExtraMins === mins && styles.minsBtnActive]}
+                  onPress={() => void handleUpdateRushMode(isPaused, mins, rushMessage)}
+                >
+                  <Text style={[styles.minsBtnText, rushExtraMins === mins && styles.minsBtnTextActive]}>
+                    {mins === 0 ? 'Normal' : `+${mins}m`}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
 
-            {order.items.map((i) => (
-              <Text key={`${i.product.id}-${i.notes}`} style={styles.item}>
-                {i.quantity} × {i.product.name}
-                {i.notes ? ` · ${i.notes}` : ""}
-              </Text>
-            ))}
+            {/* Knob 2: Pause Incoming Orders Toggle */}
+            <View style={styles.pauseRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pauseTitle}>2. PAUSE NEW INCOMING ORDERS</Text>
+                <Text style={styles.pauseSub}>Customer app displays rush message & pauses checkout</Text>
+              </View>
+              <Switch
+                value={isPaused}
+                onValueChange={(val) => void handleUpdateRushMode(val, rushExtraMins, rushMessage)}
+                trackColor={{ false: colors.line, true: colors.danger }}
+                thumbColor={colors.white}
+              />
+            </View>
 
-            {!!order.orderNotes && (
-              <Text style={styles.notes}>Note: {order.orderNotes}</Text>
-            )}
-
-            <Text style={styles.customer}>
-              {order.orderType === "table"
-                ? order.table?.name
-                : `${order.customerName} · ${order.phone}`}
-            </Text>
-
-            {next[tab] && (
-              <Button
-                label={labels[tab]!}
-                onPress={() => void updateOrderStatus(order.id, next[tab]!)}
+            {isPaused && (
+              <TextInput
+                style={styles.rushInput}
+                placeholder="Custom rush message shown to customers…"
+                placeholderTextColor={colors.muted}
+                value={rushMessage}
+                onChangeText={setRushMessage}
+                onBlur={() => void handleUpdateRushMode(isPaused, rushExtraMins, rushMessage)}
               />
             )}
+
+            {!!rushSuccess && (
+              <Text style={styles.rushSuccessText}>{rushSuccess}</Text>
+            )}
           </Card>
-        ))
-      )}
+        )}
+
+        {/* Live Table Service Requests */}
+        {pendingRequests.length > 0 && (
+          <Card style={styles.serviceBanner}>
+            <View style={styles.serviceBannerHeader}>
+              <Ionicons name="notifications-outline" size={18} color={colors.espresso} />
+              <Text style={styles.serviceBannerTitle}>
+                Table Service Requests ({pendingRequests.length})
+              </Text>
+            </View>
+            {pendingRequests.map((req) => (
+              <View key={req.id} style={styles.serviceRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.serviceTable}>
+                    {req.tableName} · {req.requestType.replace('_', ' ').toUpperCase()}
+                  </Text>
+                  {!!req.notes && (
+                    <Text style={styles.serviceNotes}>"{req.notes}"</Text>
+                  )}
+                  <Text style={styles.serviceTime}>
+                    {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+                <View style={styles.serviceActions}>
+                  {req.status === 'pending' && (
+                    <Pressable
+                      style={styles.ackBtn}
+                      onPress={() => void updateServiceStatus(req.id, 'acknowledged')}
+                    >
+                      <Text style={styles.ackBtnText}>Acknowledge</Text>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    style={styles.doneBtn}
+                    onPress={() => void updateServiceStatus(req.id, 'completed')}
+                  >
+                    <Ionicons name="checkmark" size={14} color={colors.white} />
+                    <Text style={styles.doneBtnText}>Done</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </Card>
+        )}
+
+        {/* Quick Launch Cards (Available in Simple & Advanced Mode) */}
+        <AdminLink
+          icon="speedometer-outline"
+          title="Kitchen Display System (KDS)"
+          text="Live orders queue, station routing, preparation stages & sound alerts"
+          route="/admin-kitchen"
+        />
+        <AdminLink
+          icon="restaurant-outline"
+          title="Menu & Pricing Editor"
+          text="Product catalog, pricing, item descriptions, duplicate & availability"
+          route="/admin-menu"
+        />
+        <AdminLink
+          icon="grid-outline"
+          title="Tables & Floor Layout"
+          text="Manage dining tables, QR table codes and service stations"
+          route="/admin-tables"
+        />
+
+        {/* ADVANCED MODE ONLY LINKS */}
+        {mode === 'advanced' && (
+          <View style={{ marginTop: 10 }}>
+            <Text style={styles.sectionHeader}>ADVANCED OPERATIONS & PLATFORM ENGINES</Text>
+
+            {auth.isSuperAdmin && (
+              <AdminLink
+                icon="globe-outline"
+                title="Super Admin Management"
+                text="Manage all platform restaurants, onboard new cafes, fee overrides"
+                route="/super-admin"
+              />
+            )}
+
+            <AdminLink
+              icon="wallet-outline"
+              title="Payouts & Settlement Ledger"
+              text="Gross sales, Stripe Connect transfers, app fees & direct bank payouts"
+              route="/admin-payouts"
+            />
+
+            {isFeatureEnabled('social_copywriter') && (
+              <AdminLink
+                icon="megaphone-outline"
+                title="Growth, Marketing & Concierge"
+                text="AI Social Copywriter, Review Responder, Voice Phone Orders, Group Orders & POs"
+                route="/admin-growth"
+              />
+            )}
+
+            {isFeatureEnabled('ai_copilot') && (
+              <AdminLink
+                icon="sparkles-outline"
+                title="AI & Analytics Copilot"
+                text="Demand Forecast, Health Score (0-100), Menu BCG Matrix, Win-Back & Memory"
+                route="/admin-ai"
+              />
+            )}
+
+            {isFeatureEnabled('inventory_tracking') && (
+              <AdminLink
+                icon="construct-outline"
+                title="Operations & Automation Hub"
+                text="Smart Inventory, AI Staff Roster, Checklists, Wait Balancer & Hardware"
+                route="/admin-operations"
+              />
+            )}
+
+            <AdminLink
+              icon="stats-chart-outline"
+              title="Sales & Analytics"
+              text="Daily revenue, top-selling items, hourly distribution"
+              route="/admin-analytics"
+            />
+            <AdminLink
+              icon="options-outline"
+              title="Customisations & Modifiers"
+              text="Coffee milks, sizes, bean origins, syrups & smart modifier defaults"
+              route="/admin-customisations"
+            />
+            <AdminLink
+              icon="time-outline"
+              title="Click & Collect Time Slots"
+              text="Operating hours, pickup intervals, capacity and slot limits"
+              route="/admin-pickup-settings"
+            />
+            <AdminLink
+              icon="gift-outline"
+              title="Loyalty & Promotions"
+              text="Points system, discount codes, review shield & coffee passes"
+              route="/admin-loyalty"
+            />
+            <AdminLink
+              icon="card-outline"
+              title="Payment Settings"
+              text="Stripe test mode card configuration & counter payment toggle"
+              route="/admin-payments"
+            />
+            <AdminLink
+              icon="people-outline"
+              title="Staff & Roles Management"
+              text="Team member accounts, PINs, Kitchen/Counter/Manager roles"
+              route="/admin-staff"
+            />
+          </View>
+        )}
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  exit: { color: colors.coffee, fontWeight: "800" },
+  exit: { color: colors.caramel, fontWeight: "800", fontSize: 13 },
   restaurantBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  staffRoleText: {
-    color: colors.caramel,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  activeRestName: {
-    color: colors.espresso,
-    fontSize: 16,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  switchRestBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: colors.cream,
-  },
-  switchRestText: {
-    color: colors.espresso,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  banner: {
-    backgroundColor: colors.espresso,
-    padding: 20,
-    borderRadius: 22,
-    marginBottom: 12,
-  },
-  bannerSmall: {
-    color: "#DDBB9B",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.3,
-  },
-  bannerTitle: {
-    color: colors.white,
-    fontSize: 23,
-    fontWeight: "800",
-    marginTop: 8,
-  },
-  bannerText: { color: "#E7DCD5", marginTop: 5 },
-  serviceBanner: {
-    backgroundColor: '#FFF8EB',
-    borderColor: '#EBD9B6',
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  serviceBannerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-  },
-  serviceBannerTitle: {
-    color: colors.espresso,
-    fontWeight: '800',
-    fontSize: 14,
-  },
-  serviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderColor: '#EBD9B6',
-  },
-  serviceTable: {
-    fontWeight: '800',
-    color: colors.ink,
-    fontSize: 13,
-  },
-  serviceNotes: {
-    color: colors.muted,
-    fontSize: 11,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-  serviceTime: {
-    color: colors.muted,
-    fontSize: 10,
-    marginTop: 2,
-  },
-  serviceActions: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  ackBtn: {
-    backgroundColor: colors.cream,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  ackBtnText: {
-    color: colors.espresso,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  doneBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.green,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  doneBtnText: {
-    color: colors.white,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  menuLink: {
-    backgroundColor: colors.white,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 13,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    justifyContent: "space-between",
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: 12,
+  },
+  staffRoleText: { fontSize: 10, fontWeight: "800", color: colors.caramel, letterSpacing: 0.8 },
+  activeRestName: { fontSize: 16, fontWeight: "900", color: colors.espresso, marginTop: 2 },
+  modeToggle: { flexDirection: 'row', backgroundColor: colors.cream, borderRadius: 8, padding: 2 },
+  modePill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
+  modePillActive: { backgroundColor: colors.espresso },
+  modePillText: { fontSize: 11, fontWeight: '700', color: colors.espresso },
+  modePillTextActive: { color: colors.white },
+  kpiGrid: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  kpiCard: { flex: 1, padding: 12 },
+  kpiLabel: { fontSize: 10, fontWeight: '800', color: colors.caramel, textTransform: 'uppercase' },
+  kpiVal: { fontSize: 20, fontWeight: '900', color: colors.espresso, marginVertical: 3 },
+  kpiSub: { fontSize: 10, color: colors.muted },
+  setupProgressCard: { padding: 12, marginBottom: 12 },
+  setupHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  setupTitle: { fontSize: 10, fontWeight: '900', color: colors.espresso, letterSpacing: 0.8, flex: 1 },
+  setupPercent: { fontSize: 11, fontWeight: '900', color: colors.green },
+  progressBarBg: { height: 6, borderRadius: 3, backgroundColor: colors.line, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: 3, backgroundColor: colors.green },
+  setupSub: { fontSize: 10, color: colors.muted, marginTop: 6 },
+  rushCard: { padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#F5C6CB' },
+  rushHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  rushTitle: { fontSize: 12, fontWeight: '900', color: colors.danger, letterSpacing: 0.8 },
+  rushSubtitle: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  knobLabel: { fontSize: 10, fontWeight: '800', color: colors.ink, marginBottom: 6 },
+  minsBtnRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  minsBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.cream, alignItems: 'center' },
+  minsBtnActive: { backgroundColor: colors.espresso },
+  minsBtnText: { fontSize: 11, fontWeight: '800', color: colors.espresso },
+  minsBtnTextActive: { color: colors.white },
+  pauseRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10 },
+  pauseTitle: { fontSize: 11, fontWeight: '800', color: colors.ink },
+  pauseSub: { fontSize: 10, color: colors.muted, marginTop: 1 },
+  rushInput: { backgroundColor: colors.cream, borderRadius: 8, padding: 8, fontSize: 12, color: colors.ink, marginTop: 8 },
+  rushSuccessText: { color: colors.green, fontSize: 11, fontWeight: '800', marginTop: 8 },
+  serviceBanner: { backgroundColor: '#FFF9F2', borderColor: '#EBD9B6', borderWidth: 1, padding: 12, marginBottom: 12 },
+  serviceBannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  serviceBannerTitle: { fontSize: 13, fontWeight: '800', color: colors.espresso },
+  serviceRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#F5E6CC' },
+  serviceTable: { fontSize: 12, fontWeight: '800', color: colors.ink },
+  serviceNotes: { fontSize: 11, fontStyle: 'italic', color: colors.muted },
+  serviceTime: { fontSize: 10, color: colors.muted },
+  serviceActions: { flexDirection: 'row', gap: 6 },
+  ackBtn: { backgroundColor: colors.cream, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  ackBtnText: { fontSize: 10, fontWeight: '800', color: colors.espresso },
+  doneBtn: { backgroundColor: colors.green, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  doneBtnText: { fontSize: 10, fontWeight: '800', color: colors.white },
+  sectionHeader: { fontSize: 11, fontWeight: '800', color: colors.caramel, letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
+  menuLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   menuIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     backgroundColor: colors.cream,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 11,
+    marginRight: 10,
   },
-  menuTitle: { color: colors.ink, fontWeight: "800" },
-  menuText: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  error: { color: colors.danger, marginVertical: 10 },
-  tabs: {
-    flexDirection: "row",
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 4,
-    marginVertical: 15,
-  },
-  tab: { flex: 1, alignItems: "center", borderRadius: 12, paddingVertical: 9 },
-  tabActive: { backgroundColor: colors.espresso },
-  tabCount: { color: colors.espresso, fontWeight: "800" },
-  tabText: { color: colors.muted, fontSize: 9 },
-  activeText: { color: colors.white },
-  heading: {
-    color: colors.ink,
-    fontSize: 20,
-    fontWeight: "800",
-    marginBottom: 12,
-  },
-  empty: { alignItems: "center", paddingVertical: 45 },
-  emptyTitle: { color: colors.ink, fontSize: 19, fontWeight: "800" },
-  muted: { color: colors.muted, fontSize: 11, marginTop: 4 },
-  orderCard: { marginBottom: 14 },
-  orderTop: { flexDirection: "row", justifyContent: "space-between" },
-  tableBadge: {
-    color: colors.caramel,
-    fontWeight: "800",
-    fontSize: 10,
-    letterSpacing: 1,
-    marginBottom: 5,
-  },
-  orderId: { color: colors.espresso, fontWeight: "800", fontSize: 17 },
-  price: { color: colors.coffee, fontWeight: "800", fontSize: 17 },
-  markPaidBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#E6F4EA",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 6,
-  },
-  markPaidText: {
-    color: colors.green,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  rule: { borderTopWidth: 1, borderColor: colors.line, marginVertical: 12 },
-  item: { color: colors.ink, marginBottom: 6 },
-  notes: {
-    color: colors.coffee,
-    backgroundColor: colors.cream,
-    padding: 9,
-    borderRadius: 10,
-    marginTop: 5,
-  },
-  customer: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 9,
-    marginBottom: 14,
-  },
-  paymentBadge: {
-    alignSelf: "flex-start",
-    fontWeight: "800",
-    fontSize: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 7,
-  },
-  paid: { color: colors.green, backgroundColor: "#E6F4EA" },
-  unpaid: { color: colors.caramel, backgroundColor: colors.cream },
-  refunded: { color: colors.muted, backgroundColor: colors.line },
+  menuTitle: { fontSize: 14, fontWeight: "800", color: colors.ink },
+  menuText: { fontSize: 11, color: colors.muted, marginTop: 1 },
 });

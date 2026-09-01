@@ -15,6 +15,7 @@ import { RestaurantOperationsProvider } from '@/src/context/RestaurantOperations
 import { RestaurantAIProvider } from '@/src/context/RestaurantAIContext';
 import { GrowthConciergeProvider } from '@/src/context/GrowthConciergeContext';
 import { PlatformEconomicsProvider } from '@/src/context/PlatformEconomicsContext';
+import { FeaturePermissionProvider } from '@/src/context/FeaturePermissionContext';
 import { AdminGate } from '@/src/components/AdminGate';
 
 function AppNavigator() {
@@ -34,34 +35,36 @@ export default function RootLayout() {
   return (
     <RestaurantProvider>
       <AdminAuthProvider>
-        <CustomisationProvider>
-          <ProductProvider>
-            <PickupSettingsProvider>
-              <TableProvider>
-                <LoyaltyProvider>
-                  <PaymentSettingsProvider>
-                    <OrderProvider>
-                      <ServiceRequestProvider>
-                        <CustomerExperienceProvider>
-                          <RestaurantOperationsProvider>
-                            <RestaurantAIProvider>
-                              <GrowthConciergeProvider>
-                                <PlatformEconomicsProvider>
-                                  <StatusBar style="dark" />
-                                  <AppNavigator />
-                                </PlatformEconomicsProvider>
-                              </GrowthConciergeProvider>
-                            </RestaurantAIProvider>
-                          </RestaurantOperationsProvider>
-                        </CustomerExperienceProvider>
-                      </ServiceRequestProvider>
-                    </OrderProvider>
-                  </PaymentSettingsProvider>
-                </LoyaltyProvider>
-              </TableProvider>
-            </PickupSettingsProvider>
-          </ProductProvider>
-        </CustomisationProvider>
+        <FeaturePermissionProvider>
+          <CustomisationProvider>
+            <ProductProvider>
+              <PickupSettingsProvider>
+                <TableProvider>
+                  <LoyaltyProvider>
+                    <PaymentSettingsProvider>
+                      <OrderProvider>
+                        <ServiceRequestProvider>
+                          <CustomerExperienceProvider>
+                            <RestaurantOperationsProvider>
+                              <RestaurantAIProvider>
+                                <GrowthConciergeProvider>
+                                  <PlatformEconomicsProvider>
+                                    <StatusBar style="dark" />
+                                    <AppNavigator />
+                                  </PlatformEconomicsProvider>
+                                </GrowthConciergeProvider>
+                              </RestaurantAIProvider>
+                            </RestaurantOperationsProvider>
+                          </CustomerExperienceProvider>
+                        </ServiceRequestProvider>
+                      </OrderProvider>
+                    </PaymentSettingsProvider>
+                  </LoyaltyProvider>
+                </TableProvider>
+              </PickupSettingsProvider>
+            </ProductProvider>
+          </CustomisationProvider>
+        </FeaturePermissionProvider>
       </AdminAuthProvider>
     </RestaurantProvider>
   );

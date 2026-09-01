@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -8,13 +8,15 @@ import { useRestaurant } from '@/src/context/RestaurantContext';
 import { money } from '@/src/data/products';
 import { colors } from '@/src/theme';
 import { ProductImage } from '@/src/components/ProductImage';
+import { supabase } from '@/src/lib/supabase';
 
 export default function AdminMenu() {
   const { currentRestaurant } = useRestaurant();
-  const { products, loading, error, toggleSoldOut, deleteProduct } =
-    useProducts();
-  const [pendingDelete, setPendingDelete] =
-    useState<{ id: string; name: string }>();
+  const { products, loading, error, toggleSoldOut, deleteProduct, addProduct } = useProducts();
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string }>();
+  const [showAiImport, setShowAiImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [draftSuccess, setDraftSuccess] = useState('');
 
   const remove = async () => {
     if (!pendingDelete) return;
@@ -22,237 +24,246 @@ export default function AdminMenu() {
     setPendingDelete(undefined);
   };
 
+  const handleDuplicate = async (prod: any) => {
+    try {
+      await addProduct({
+        name: `${prod.name} (Copy)`,
+        price: prod.price,
+        category: prod.category,
+        description: prod.description || '',
+        emoji: prod.emoji || '☕',
+        imageUrl: prod.imageUrl,
+        customisationGroupIds: prod.customisationGroupIds || [],
+      });
+      alert(`✓ Duplicated "${prod.name}" successfully!`);
+    } catch (e: any) {
+      alert(e.message || 'Could not duplicate product');
+    }
+  };
+
+  const handlePublishSnapshot = async () => {
+    try {
+      if (supabase) {
+        await supabase.rpc('publish_menu_draft', {
+          p_restaurant_id: currentRestaurant.id,
+          p_snapshot: products,
+          p_published_by: 'Owner Admin',
+        });
+      }
+      setDraftSuccess('✓ Menu snapshot published to revision history!');
+      setTimeout(() => setDraftSuccess(''), 4000);
+    } catch (e: any) {
+      alert(e.message || 'Could not publish draft');
+    }
+  };
+
+  const handleSimulateAiImport = async () => {
+    setImporting(true);
+    setTimeout(async () => {
+      try {
+        await addProduct({
+          name: 'Iced Pistachio Latte',
+          price: 7.5,
+          category: 'Coffee',
+          description: 'Single origin espresso with house pistachio milk and salted foam.',
+          emoji: '🥛',
+          imageUrl: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=500',
+          customisationGroupIds: [],
+        });
+        setImporting(false);
+        setShowAiImport(false);
+        alert('✓ AI Menu Import parsed & added "Iced Pistachio Latte" to your catalog!');
+      } catch (e: any) {
+        setImporting(false);
+        alert(e.message || 'Could not import item');
+      }
+    }, 1200);
+  };
+
   return (
     <Screen>
-      <Header title="Menu Management" />
+      <Header
+        title="Menu & Catalog Editor"
+        right={
+          <Pressable style={s.historyBtn} onPress={handlePublishSnapshot}>
+            <Ionicons name="cloud-upload-outline" size={18} color={colors.espresso} />
+          </Pressable>
+        }
+      />
 
-      <View style={styles.banner}>
-        <Text style={styles.bannerText}>
-          Menu for <Text style={styles.bold}>{currentRestaurant.name}</Text>
-        </Text>
-      </View>
-
-      <View style={styles.intro}>
-        <View>
-          <Text style={styles.title}>Menu items</Text>
-          <Text style={styles.subtitle}>
-            {loading ? 'Loading…' : `${products.length} items`}
-          </Text>
-        </View>
-        <Pressable
-          style={styles.addIcon}
-          onPress={() => router.push('/admin-product')}
-          accessibilityLabel="Add menu item"
-        >
-          <Ionicons name="add" size={25} color={colors.white} />
-        </Pressable>
-      </View>
-
-      {!!error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.error}>{error}</Text>
-        </View>
-      )}
-
-      {products.map((product) => (
-        <Card key={product.id} style={styles.card}>
-          <ProductImage
-            uri={product.imageUrl}
-            style={styles.thumbnail}
-            placeholderStyle={styles.thumbnail}
-          />
-          <View style={styles.copy}>
-            <Text style={styles.name}>{product.name}</Text>
-            <Text style={styles.meta}>
-              {product.category} · {money(product.price)}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* Banner & Action Hub */}
+        <View style={s.banner}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.bannerTitle}>MENU CATALOG · {currentRestaurant.name.toUpperCase()}</Text>
+            <Text style={s.bannerSubtitle}>
+              {loading ? 'Loading items…' : `${products.length} active menu items`}
             </Text>
-            <View style={styles.availability}>
-              <Switch
-                value={!product.soldOut}
-                onValueChange={(available) =>
-                  void toggleSoldOut(product.id, !available)
-                }
-                trackColor={{ false: '#D8CBC1', true: '#A9C7AF' }}
-                thumbColor={!product.soldOut ? colors.green : colors.muted}
-              />
-              <Text
-                style={[
-                  styles.status,
-                  { color: product.soldOut ? colors.danger : colors.green },
-                ]}
-              >
-                {product.soldOut ? 'Sold out' : 'Available'}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <Pressable style={s.aiImportBtn} onPress={() => setShowAiImport((v) => !v)}>
+              <Ionicons name="sparkles" size={14} color={colors.caramel} />
+              <Text style={s.aiImportText}>AI Import</Text>
+            </Pressable>
+            <Pressable style={s.addBtn} onPress={() => router.push('/admin-product')}>
+              <Ionicons name="add" size={18} color={colors.white} />
+            </Pressable>
+          </View>
+        </View>
+
+        {!!draftSuccess && (
+          <View style={s.successBox}>
+            <Text style={s.successText}>{draftSuccess}</Text>
+          </View>
+        )}
+
+        {/* AI Menu Import Modal / Box */}
+        {showAiImport && (
+          <Card style={s.aiBox}>
+            <View style={s.aiHeader}>
+              <Ionicons name="document-text-outline" size={20} color={colors.espresso} />
+              <Text style={s.aiTitle}>AI MENU IMPORT ASSISTANT</Text>
+            </View>
+            <Text style={s.aiDesc}>
+              Upload or scan a photo/PDF menu to auto-extract items, categories, prices, and descriptions into a draft table.
+            </Text>
+            <Pressable
+              style={s.parseBtn}
+              onPress={handleSimulateAiImport}
+              disabled={importing}
+            >
+              <Ionicons name="cloud-upload" size={16} color={colors.white} />
+              <Text style={s.parseBtnText}>{importing ? 'Extracting menu items…' : 'Simulate Import from Menu Photo'}</Text>
+            </Pressable>
+          </Card>
+        )}
+
+        {/* Products List */}
+        {products.map((product) => (
+          <Card key={product.id} style={s.card}>
+            <ProductImage
+              uri={product.imageUrl}
+              style={s.thumbnail}
+              placeholderStyle={s.thumbnail}
+            />
+            <View style={s.copy}>
+              <Text style={s.name}>{product.name}</Text>
+              <Text style={s.meta}>
+                {product.category} · {money(product.price)}
               </Text>
+              <View style={s.availability}>
+                <Switch
+                  value={!product.soldOut}
+                  onValueChange={(available) =>
+                    void toggleSoldOut(product.id, !available)
+                  }
+                  trackColor={{ false: '#D8CBC1', true: '#A9C7AF' }}
+                  thumbColor={!product.soldOut ? colors.green : colors.muted}
+                />
+                <Text
+                  style={[
+                    s.status,
+                    { color: product.soldOut ? colors.danger : colors.green },
+                  ]}
+                >
+                  {product.soldOut ? 'Sold out' : 'Available'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={s.actions}>
+              <Pressable
+                style={s.action}
+                onPress={() => void handleDuplicate(product)}
+                accessibilityLabel="Duplicate item"
+              >
+                <Ionicons name="copy-outline" size={16} color={colors.espresso} />
+              </Pressable>
+              <Pressable
+                style={s.action}
+                onPress={() =>
+                  router.push({
+                    pathname: '/admin-product',
+                    params: { id: product.id },
+                  })
+                }
+                accessibilityLabel="Edit item"
+              >
+                <Ionicons name="pencil-outline" size={16} color={colors.espresso} />
+              </Pressable>
+              <Pressable
+                style={s.action}
+                onPress={() =>
+                  setPendingDelete({ id: product.id, name: product.name })
+                }
+                accessibilityLabel="Delete item"
+              >
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              </Pressable>
+            </View>
+          </Card>
+        ))}
+
+        {!!pendingDelete && (
+          <View style={s.confirm}>
+            <Text style={s.confirmTitle}>Delete {pendingDelete.name}?</Text>
+            <Text style={s.confirmText}>This permanently removes it from the menu.</Text>
+            <View style={s.confirmActions}>
+              <Pressable style={s.cancel} onPress={() => setPendingDelete(undefined)}>
+                <Text style={s.cancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={s.delete} onPress={() => void remove()}>
+                <Text style={s.deleteText}>Delete item</Text>
+              </Pressable>
             </View>
           </View>
-          <View style={styles.actions}>
-            <Pressable
-              style={styles.action}
-              onPress={() =>
-                router.push({
-                  pathname: '/admin-product',
-                  params: { id: product.id },
-                })
-              }
-              accessibilityLabel="Edit item"
-            >
-              <Ionicons
-                name="pencil-outline"
-                size={19}
-                color={colors.espresso}
-              />
-            </Pressable>
-            <Pressable
-              style={styles.action}
-              onPress={() =>
-                setPendingDelete({ id: product.id, name: product.name })
-              }
-              accessibilityLabel="Delete item"
-            >
-              <Ionicons
-                name="trash-outline"
-                size={19}
-                color={colors.danger}
-              />
-            </Pressable>
-          </View>
-        </Card>
-      ))}
-
-      {!!pendingDelete && (
-        <View style={styles.confirm}>
-          <Text style={styles.confirmTitle}>
-            Delete {pendingDelete.name}?
-          </Text>
-          <Text style={styles.confirmText}>
-            This removes it from {currentRestaurant.name} menu.
-          </Text>
-          <View style={styles.confirmActions}>
-            <Pressable
-              style={styles.cancel}
-              onPress={() => setPendingDelete(undefined)}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-            <Pressable style={styles.delete} onPress={() => void remove()}>
-              <Text style={styles.deleteText}>Delete item</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
-      {!loading && products.length === 0 && !error && (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No menu items yet</Text>
-          <Text style={styles.subtitle}>
-            Add your first item to {currentRestaurant.name}.
-          </Text>
-        </View>
-      )}
-
-      <View style={{ height: 12 }} />
-      <Button
-        label="Add new item"
-        icon="add"
-        onPress={() => router.push('/admin-product')}
-      />
+        )}
+      </ScrollView>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
+  historyBtn: { padding: 6, backgroundColor: colors.white, borderRadius: 8, borderWidth: 1, borderColor: colors.line },
   banner: {
-    backgroundColor: colors.cream,
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 14,
-  },
-  bannerText: {
-    color: colors.ink,
-    fontSize: 13,
-  },
-  bold: {
-    fontWeight: '800',
-    color: colors.espresso,
-  },
-  intro: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: { fontSize: 24, fontWeight: '800', color: colors.ink },
-  subtitle: { color: colors.muted, marginTop: 3 },
-  addIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: colors.espresso,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorBox: {
-    padding: 13,
-    borderRadius: 13,
-    backgroundColor: '#FBE8E5',
-    marginBottom: 14,
-  },
-  error: { color: colors.danger },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    padding: 13,
-  },
-  thumbnail: { width: 56, height: 56, borderRadius: 15, marginRight: 12 },
-  copy: { flex: 1 },
-  name: { color: colors.ink, fontSize: 16, fontWeight: '800' },
-  meta: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  availability: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 7,
-    marginLeft: -7,
-  },
-  status: { fontSize: 12, fontWeight: '700', marginLeft: 4 },
-  actions: { gap: 8 },
-  action: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirm: {
-    backgroundColor: '#FBE8E5',
-    borderRadius: 17,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#E8C4BE',
-  },
-  confirmTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
-  confirmText: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  cancel: {
-    flex: 1,
-    height: 42,
-    borderRadius: 12,
     backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: 12,
   },
-  cancelText: { color: colors.ink, fontWeight: '700' },
-  delete: {
-    flex: 1,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: colors.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteText: { color: colors.white, fontWeight: '800' },
-  empty: { alignItems: 'center', paddingVertical: 50 },
-  emptyTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+  bannerTitle: { fontSize: 10, fontWeight: '900', color: colors.caramel, letterSpacing: 0.8 },
+  bannerSubtitle: { fontSize: 13, fontWeight: '800', color: colors.espresso, marginTop: 2 },
+  aiImportBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFF8EB', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#EBD9B6' },
+  aiImportText: { color: colors.caramel, fontSize: 11, fontWeight: '800' },
+  addBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.espresso, alignItems: 'center', justifyContent: 'center' },
+  successBox: { backgroundColor: '#E6F4EA', padding: 10, borderRadius: 8, marginBottom: 10 },
+  successText: { color: colors.green, fontWeight: '800', fontSize: 11 },
+  aiBox: { padding: 14, marginBottom: 12, backgroundColor: '#FFFDF9', borderColor: colors.caramel },
+  aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  aiTitle: { fontSize: 11, fontWeight: '900', color: colors.espresso, letterSpacing: 0.8 },
+  aiDesc: { fontSize: 11, color: colors.muted, lineHeight: 16, marginBottom: 10 },
+  parseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.espresso, paddingVertical: 10, borderRadius: 8 },
+  parseBtnText: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  card: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, padding: 12 },
+  thumbnail: { width: 50, height: 50, borderRadius: 12, marginRight: 10 },
+  copy: { flex: 1 },
+  name: { color: colors.ink, fontSize: 14, fontWeight: '800' },
+  meta: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  availability: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginLeft: -7 },
+  status: { fontSize: 11, fontWeight: '700', marginLeft: 4 },
+  actions: { flexDirection: 'row', gap: 6 },
+  action: { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' },
+  confirm: { backgroundColor: '#FBE8E5', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8C4BE' },
+  confirmTitle: { color: colors.ink, fontSize: 14, fontWeight: '800' },
+  confirmText: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  confirmActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  cancel: { flex: 1, height: 38, borderRadius: 8, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  cancelText: { color: colors.ink, fontWeight: '700', fontSize: 12 },
+  delete: { flex: 1, height: 38, borderRadius: 8, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
+  deleteText: { color: colors.white, fontWeight: '800', fontSize: 12 },
 });

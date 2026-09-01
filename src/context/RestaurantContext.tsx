@@ -34,6 +34,15 @@ export type Restaurant = {
   applePayEnabled: boolean;
   googlePayEnabled: boolean;
   isActive: boolean;
+  is_orders_paused?: boolean;
+  rush_wait_extra_minutes?: number;
+  rush_customer_message?: string | null;
+  rush_limited_menu_enabled?: boolean;
+  cuisineTypes?: string[];
+  rating?: number;
+  distance_km?: number;
+  deals_tag?: string | null;
+  hero_image_url?: string | null;
   plan?: 'starter' | 'standard' | 'premium';
   subscriptionStatus?: 'trialing' | 'active' | 'past_due' | 'canceled';
   trialEnd?: string;
@@ -96,6 +105,15 @@ type RestaurantRow = {
   apple_pay_enabled: boolean;
   google_pay_enabled: boolean;
   is_active: boolean;
+  is_orders_paused?: boolean;
+  rush_wait_extra_minutes?: number;
+  rush_customer_message?: string | null;
+  rush_limited_menu_enabled?: boolean;
+  cuisine_types?: string[];
+  rating?: number;
+  distance_km?: number;
+  deals_tag?: string | null;
+  hero_image_url?: string | null;
 };
 
 function mapRow(row: RestaurantRow): Restaurant {
@@ -123,6 +141,15 @@ function mapRow(row: RestaurantRow): Restaurant {
     applePayEnabled: row.apple_pay_enabled ?? true,
     googlePayEnabled: row.google_pay_enabled ?? true,
     isActive: row.is_active ?? true,
+    is_orders_paused: row.is_orders_paused ?? false,
+    rush_wait_extra_minutes: row.rush_wait_extra_minutes ?? 0,
+    rush_customer_message: row.rush_customer_message ?? undefined,
+    rush_limited_menu_enabled: row.rush_limited_menu_enabled ?? false,
+    cuisineTypes: row.cuisine_types ?? ['Cafe', 'Coffee'],
+    rating: Number(row.rating ?? 4.9),
+    distance_km: Number(row.distance_km ?? 0.4),
+    deals_tag: row.deals_tag ?? undefined,
+    hero_image_url: row.hero_image_url ?? undefined,
   };
 }
 

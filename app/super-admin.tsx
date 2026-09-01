@@ -194,16 +194,22 @@ export default function SuperAdminScreen() {
         </View>
       </View>
 
-      {/* Action Buttons: Billing & Onboarding */}
-      <View style={[s.actionRow, { gap: 10 }]}>
+      {/* Action Buttons: Features, Billing & Onboarding */}
+      <View style={[s.actionRow, { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }]}>
         <Button
-          label="Platform Billing & Payouts"
+          label="Feature Manager"
+          icon="options-outline"
+          onPress={() => router.push('/super-admin-features' as never)}
+        />
+        <Button
+          label="Billing & Payouts"
           icon="wallet-outline"
+          secondary
           onPress={() => router.push('/super-admin-billing' as never)}
         />
         <Button
-          label={showWizard ? 'Cancel Onboarding Wizard' : '+ Onboard New Restaurant'}
-          secondary={showWizard}
+          label={showWizard ? 'Cancel' : '+ Onboard Cafe'}
+          secondary={!showWizard}
           icon={showWizard ? 'close-outline' : 'add-circle-outline'}
           onPress={() => {
             setShowWizard((c) => !c);

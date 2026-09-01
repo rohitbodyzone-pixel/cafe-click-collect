@@ -1,914 +1,482 @@
+import React, { useState, useMemo } from 'react';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Screen, Card } from '@/src/components/UI';
-import { money } from '@/src/data/products';
+import { Card, Screen } from '@/src/components/UI';
+import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useOrders } from '@/src/context/OrderContext';
-import { useProducts } from '@/src/context/ProductContext';
-import { colors } from '@/src/theme';
-import { useTables } from '@/src/context/TableContext';
-import { ProductImage } from '@/src/components/ProductImage';
-import { useLoyalty } from '@/src/context/LoyaltyContext';
-import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
+import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
+import { colors } from '@/src/theme';
+import { money } from '@/src/data/products';
 
-export default function MenuScreen() {
-  const { currentRestaurant, selectRestaurantBySlug } = useRestaurant();
-  const { cart, orderMode, table, setOrderMode, orders, addToCart, clearCart } = useOrders();
-  const { table: tableCode, restaurant: restaurantSlug, r: shortSlug } =
-    useLocalSearchParams<{ table?: string; restaurant?: string; r?: string }>();
-  const { tables, loading: loadingTables } = useTables();
-  const { products, loading, error } = useProducts();
-  const { customerKey, balance, settings, promos } = useLoyalty();
-  const {
-    usual,
-    vipTier,
-    currentStreakDays,
-    customerPasses,
-    vipDiscountPercent,
-  } = useCustomerExperience();
-  const [showTables, setShowTables] = useState(false);
+type FoodCategory = {
+  id: string;
+  name: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  cuisine: string;
+};
+
+const CATEGORIES: FoodCategory[] = [
+  { id: 'coffee', name: 'Coffee & Drinks', icon: 'cafe-outline', cuisine: 'Coffee' },
+  { id: 'bakery', name: 'Bakery & Pastry', icon: 'nutrition-outline', cuisine: 'Bakery' },
+  { id: 'italian', name: 'Italian & Pasta', icon: 'restaurant-outline', cuisine: 'Italian' },
+  { id: 'healthy', name: 'Healthy & Bowls', icon: 'leaf-outline', cuisine: 'Breakfast' },
+  { id: 'dessert', name: 'Desserts & Sweet', icon: 'ice-cream-outline', cuisine: 'Dessert' },
+];
+
+export default function CustomerMarketplaceHome() {
+  const { restaurants, currentRestaurant, setCurrentRestaurant } = useRestaurant();
+  const { cart, orders, addToCart, clearCart } = useOrders();
+  const { usual, vipTier, currentStreakDays } = useCustomerExperience();
+  const { isFeatureEnabled } = useFeaturePermission();
+
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'cart' | 'orders' | 'profile'>('home');
 
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const customerOrders = orders.filter((order) => order.customerKey === customerKey);
-  const activeOrder = customerOrders.find((order) => order.status !== 'Collected');
-  const activePromos = promos.filter(
-    (promo) => promo.enabled && (!promo.expiresAt || new Date(promo.expiresAt) >= new Date()),
-  );
-  const loyaltyProgress = Math.min(100, (balance.coffeeStamps / (settings.coffeeGoal || 4)) * 100);
 
-  // Handle URL restaurant switching
-  useEffect(() => {
-    const slug = restaurantSlug || shortSlug;
-    if (slug && slug.toLowerCase() !== currentRestaurant.slug.toLowerCase()) {
-      void selectRestaurantBySlug(slug);
-    }
-  }, [restaurantSlug, shortSlug, currentRestaurant.slug, selectRestaurantBySlug]);
+  const activeRestaurants = useMemo(() => {
+    return restaurants.filter((r) => {
+      const matchSearch =
+        !search.trim() ||
+        r.name.toLowerCase().includes(search.toLowerCase()) ||
+        r.description.toLowerCase().includes(search.toLowerCase()) ||
+        (r.cuisineTypes || []).some((c) => c.toLowerCase().includes(search.toLowerCase()));
 
-  // Handle Table QR code scanning
-  useEffect(() => {
-    if (!tableCode || loadingTables) return;
-    const found = tables.find(
-      (item) => item.code.toLowerCase() === tableCode.toLowerCase() && item.active,
-    );
-    if (found) setOrderMode('table', found);
-  }, [tableCode, tables, loadingTables, setOrderMode]);
+      const matchCat =
+        !selectedCategory ||
+        (r.cuisineTypes || []).some((c) => c.toLowerCase().includes(selectedCategory.toLowerCase()));
+
+      return r.isActive && matchSearch && matchCat;
+    });
+  }, [restaurants, search, selectedCategory]);
+
+  const handleSelectRestaurant = (restaurant: Restaurant) => {
+    setCurrentRestaurant(restaurant);
+    router.push('/menu' as never);
+  };
 
   return (
     <Screen>
-      <View style={styles.top}>
-        <View style={{ flex: 1 }}>
-          <Pressable
-            style={styles.restaurantSelector}
-            onPress={() => router.push('/restaurants')}
-          >
-            <View style={styles.locationPin}>
-              <Ionicons name="location" size={13} color={colors.caramel} />
-            </View>
-            <Text style={styles.restaurantSwitchText} numberOfLines={1}>
-              {currentRestaurant.name}
-            </Text>
-            <Ionicons name="chevron-down" size={14} color={colors.caramel} />
-          </Pressable>
-          <Text style={styles.brand}>{currentRestaurant.name}</Text>
-          {!!currentRestaurant.address && (
-            <Text style={styles.addressText} numberOfLines={1}>
-              {currentRestaurant.address}
-            </Text>
-          )}
-        </View>
-        <View style={styles.topActions}>
-          <Pressable
-            style={styles.browseCafesBtn}
-            onPress={() => router.push('/restaurants')}
-            accessibilityLabel="Switch restaurant"
-          >
-            <Ionicons name="storefront-outline" size={18} color={colors.espresso} />
-          </Pressable>
-          <Pressable
-            style={styles.admin}
-            onPress={() => router.push('/admin')}
-            accessibilityLabel="Staff Admin"
-          >
-            <Ionicons name="shield-outline" size={18} color={colors.espresso} />
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.modeRow}>
-        {currentRestaurant.clickAndCollectEnabled && (
-          <Pressable
-            style={[styles.mode, orderMode === 'pickup' && styles.modeActive]}
-            onPress={() => {
-              setOrderMode('pickup');
-              setShowTables(false);
-            }}
-          >
-            <Text
-              style={[
-                styles.modeText,
-                orderMode === 'pickup' && styles.modeTextActive,
-              ]}
-            >
-              Click & Collect
-            </Text>
-          </Pressable>
-        )}
-        {currentRestaurant.tableOrderingEnabled && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Order at Table"
-            style={[styles.mode, orderMode === 'table' && styles.modeActive]}
-            onPress={() => setShowTables((current) => !current)}
-          >
-            <Text
-              style={[
-                styles.modeText,
-                orderMode === 'table' && styles.modeTextActive,
-              ]}
-            >
-              {table ? table.name : 'Order at Table'}
-            </Text>
-          </Pressable>
-        )}
-      </View>
-
-      {showTables && (
-        <View style={styles.tablePicker}>
-          <Text style={styles.tablePickerTitle}>Select your table</Text>
-          <Text style={styles.tablePickerHelp}>
-            QR guests are selected automatically. Otherwise choose the table you are sitting at.
-          </Text>
-          {loadingTables ? (
-            <Text style={styles.tablePickerHelp}>Loading tables…</Text>
-          ) : (
-            tables
-              .filter((item) => item.active)
-              .map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={[
-                    styles.tableChoice,
-                    table?.id === item.id && styles.tableChoiceActive,
-                  ]}
-                  onPress={() => {
-                    setOrderMode('table', item);
-                    setShowTables(false);
-                  }}
-                >
-                  <Ionicons
-                    name="restaurant-outline"
-                    size={19}
-                    color={table?.id === item.id ? colors.white : colors.espresso}
-                  />
-                  <Text
-                    style={[
-                      styles.tableChoiceText,
-                      table?.id === item.id && { color: colors.white },
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                </Pressable>
-              ))
-          )}
-          {!loadingTables && !tables.some((item) => item.active) && (
-            <Text style={styles.error}>
-              No tables are currently registered for {currentRestaurant.name}.
-            </Text>
-          )}
-        </View>
-      )}
-
-      <View style={styles.hero}>
-        <Text style={styles.heroSmall}>
-          {orderMode === 'table' ? 'ORDER AT TABLE' : 'CLICK & COLLECT'}
-        </Text>
-        <Text style={styles.heroTitle}>
-          {orderMode === 'table'
-            ? `${table?.name || 'Your table'} service,\nright from your seat.`
-            : `Your café favourites,\nready when you are.`}
-        </Text>
-        <Text style={styles.heroText}>
-          {orderMode === 'table'
-            ? 'Order from the live menu and we’ll bring it to your table.'
-            : 'Order ahead and skip the wait.'}
-        </Text>
-      </View>
-
-      <View style={styles.customerNav}>
-        <Pressable
-          style={styles.navItem}
-          onPress={() => router.push('/restaurants')}
-        >
-          <View style={styles.navIcon}>
-            <Ionicons name="storefront-outline" size={18} color={colors.espresso} />
+      {/* 1. Location & Profile Header */}
+      <View style={s.topHeader}>
+        <View style={s.locationWrap}>
+          <View style={s.pinCircle}>
+            <Ionicons name="location" size={14} color={colors.caramel} />
           </View>
-          <Text style={styles.navLabel}>Cafés</Text>
-        </Pressable>
-        <Pressable
-          style={styles.navItem}
-          onPress={() => router.push('/rewards')}
-        >
-          <View style={styles.navIcon}>
-            <Ionicons name="gift-outline" size={18} color={colors.espresso} />
-          </View>
-          <Text style={styles.navLabel}>Rewards</Text>
-        </Pressable>
-        <Pressable
-          style={styles.navItem}
-          onPress={() => router.push('/passes')}
-        >
-          <View style={styles.navIcon}>
-            <Ionicons name="ticket-outline" size={18} color={colors.espresso} />
-          </View>
-          <Text style={styles.navLabel}>Passes</Text>
-        </Pressable>
-        <Pressable
-          style={styles.navItem}
-          onPress={() =>
-            activeOrder
-              ? router.push({ pathname: '/order-status', params: { id: activeOrder.id } })
-              : router.push('/orders')
-          }
-        >
-          <View style={styles.navIcon}>
-            <Ionicons name="time-outline" size={18} color={colors.espresso} />
-          </View>
-          <Text style={styles.navLabel}>Orders</Text>
-        </Pressable>
-      </View>
-
-      {/* VIP & Streak Loyalty Card */}
-      <Pressable
-        style={styles.loyaltyCard}
-        onPress={() => router.push('/rewards')}
-      >
-        <View style={styles.loyaltyTop}>
           <View>
-            <View style={styles.vipTagRow}>
-              <Text style={styles.cardEyebrow}>
-                {currentRestaurant.name.toUpperCase()}
-              </Text>
-              <View style={styles.vipPill}>
-                <Text style={styles.vipPillText}>{vipTier.toUpperCase()} VIP</Text>
-              </View>
-              {currentStreakDays > 1 && (
-                <View style={styles.streakPill}>
-                  <Text style={styles.streakPillText}>{currentStreakDays}D STREAK 🔥</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.points}>{balance.points} points</Text>
-          </View>
-          <View style={styles.giftCircle}>
-            <Ionicons name="cafe" size={24} color={colors.white} />
+            <Text style={s.pickupLabel}>PICKUP LOCATION</Text>
+            <Text style={s.locationText}>Auckland Central, NZ ▾</Text>
           </View>
         </View>
-        <Text style={styles.loyaltyTitle}>
-          {balance.freeCoffees > 0
-            ? `You have ${balance.freeCoffees} free coffee${balance.freeCoffees === 1 ? '' : 's'} ready!`
-            : vipDiscountPercent > 0
-            ? `${vipDiscountPercent}% VIP Regular discount unlocked on your orders.`
-            : `${settings.coffeeGoal - (balance.coffeeStamps % settings.coffeeGoal)} more coffees to your next reward`}
-        </Text>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${loyaltyProgress}%` }]} />
-        </View>
-        <View style={styles.loyaltyBottom}>
-          <Text style={styles.loyaltyHelp}>
-            Buy {settings.coffeeGoal}, get 1 free
-          </Text>
-          <Text style={styles.viewLink}>View rewards →</Text>
-        </View>
-      </Pressable>
 
-      {/* My Usual / 1-Tap Quick Reorder Card */}
-      {usual && usual.items && usual.items.length > 0 && (
-        <Card style={styles.usualCard}>
-          <View style={styles.usualHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="star" size={16} color={colors.caramel} />
-              <Text style={styles.usualTitle}>MY USUAL ORDER</Text>
-            </View>
-            <Text style={styles.usualPrice}>
-              {money(usual.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0))}
-            </Text>
-          </View>
-          <Text style={styles.usualItemsText}>
-            {usual.items.map((i) => `${i.quantity}x ${i.product.name}`).join(' + ')}
-          </Text>
-          <Pressable
-            style={styles.reorderUsualBtn}
-            onPress={() => {
-              clearCart();
-              usual.items.forEach((item) => {
-                addToCart(item.product, item.quantity, item.notes, item.customisations);
-              });
-              router.push('/cart');
-            }}
-          >
-            <Ionicons name="flash" size={16} color={colors.white} />
-            <Text style={styles.reorderUsualBtnText}>One-Tap Reorder</Text>
+        <Pressable style={s.adminBtn} onPress={() => router.push('/admin')}>
+          <Ionicons name="shield-outline" size={18} color={colors.espresso} />
+        </Pressable>
+      </View>
+
+      {/* 2. Global Search Bar */}
+      <View style={s.searchBar}>
+        <Ionicons name="search-outline" size={18} color={colors.muted} />
+        <TextInput
+          style={s.searchInput}
+          placeholder="Search cafes, coffee, pasta, bakery…"
+          placeholderTextColor={colors.muted}
+          value={search}
+          onChangeText={setSearch}
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch('')}>
+            <Ionicons name="close-circle" size={16} color={colors.muted} />
           </Pressable>
-        </Card>
-      )}
-
-      {activeOrder && (
-        <Pressable
-          style={styles.orderCard}
-          onPress={() =>
-            router.push({ pathname: '/order-status', params: { id: activeOrder.id } })
-          }
-        >
-          <View style={styles.orderIcon}>
-            <Ionicons name="bag-handle-outline" size={22} color={colors.green} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.orderEyebrow}>
-              CURRENT ORDER · {activeOrder.id}
-            </Text>
-            <Text style={styles.orderTitle}>
-              {activeOrder.status === 'Incoming' ? 'Order received' : activeOrder.status}
-            </Text>
-            <Text style={styles.orderHelp}>
-              {activeOrder.orderType === 'table'
-                ? activeOrder.table?.name
-                : activeOrder.pickupTime}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-        </Pressable>
-      )}
-
-      <View style={styles.offerHeader}>
-        <Text style={styles.heading}>Offers for you</Text>
-        <Pressable onPress={() => router.push('/rewards')}>
-          <Text style={styles.viewLink}>See all</Text>
-        </Pressable>
+        )}
       </View>
 
-      <Pressable
-        style={styles.offerCard}
-        onPress={() => router.push('/rewards')}
-      >
-        <View style={styles.offerIcon}>
-          <Ionicons name="pricetag-outline" size={21} color={colors.caramel} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.offerTitle}>
-            {activePromos[0]?.code || `${currentRestaurant.name} Rewards`}
-          </Text>
-          <Text style={styles.offerText}>
-            {activePromos[0]?.description ||
-              `Earn points on every order and a free coffee after ${settings.coffeeGoal} coffees.`}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={19} color={colors.muted} />
-      </Pressable>
-
-      <View style={styles.sectionRow}>
-        <Text style={styles.heading}>Our menu</Text>
-        <Text style={styles.count}>
-          {loading ? 'Loading…' : `${products.length} items`}
-        </Text>
-      </View>
-
-      {!!error && <Text style={styles.error}>{error}</Text>}
-
-      <View style={styles.grid}>
-        {products.map((product) => (
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.contentContainer}>
+        {/* 3. Food Category Pills */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.categoryScroll}>
           <Pressable
-            key={product.id}
-            disabled={product.soldOut}
-            style={[styles.productWrap, product.soldOut && { opacity: 0.55 }]}
-            onPress={() => router.push(`/product/${product.id}`)}
+            style={[s.catPill, !selectedCategory && s.catPillActive]}
+            onPress={() => setSelectedCategory(null)}
           >
-            <Card style={styles.product}>
-              <View style={styles.imageWrap}>
-                <ProductImage
-                  uri={product.imageUrl}
-                  style={styles.productImage}
-                  placeholderStyle={styles.productImage}
-                />
-                {product.soldOut && (
-                  <View style={styles.soldBadge}>
-                    <Text style={styles.soldText}>SOLD OUT</Text>
-                  </View>
+            <Ionicons
+              name="sparkles-outline"
+              size={14}
+              color={!selectedCategory ? colors.white : colors.espresso}
+            />
+            <Text style={[s.catPillText, !selectedCategory && s.catPillTextActive]}>All</Text>
+          </Pressable>
+          {CATEGORIES.map((cat) => (
+            <Pressable
+              key={cat.id}
+              style={[s.catPill, selectedCategory === cat.cuisine && s.catPillActive]}
+              onPress={() =>
+                setSelectedCategory(selectedCategory === cat.cuisine ? null : cat.cuisine)
+              }
+            >
+              <Ionicons
+                name={cat.icon}
+                size={14}
+                color={selectedCategory === cat.cuisine ? colors.white : colors.espresso}
+              />
+              <Text style={[s.catPillText, selectedCategory === cat.cuisine && s.catPillTextActive]}>
+                {cat.name}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        {/* 4. VIP Streak & Rewards Banner */}
+        {isFeatureEnabled('loyalty_rewards') && (
+          <Pressable style={s.vipBanner} onPress={() => router.push('/rewards')}>
+            <View style={{ flex: 1 }}>
+              <View style={s.vipTagRow}>
+                <Text style={s.vipBadgeText}>{vipTier.toUpperCase()} VIP MEMBER</Text>
+                {currentStreakDays > 1 && (
+                  <Text style={s.streakBadgeText}>🔥 {currentStreakDays}-DAY STREAK</Text>
                 )}
               </View>
-              <Text style={styles.category}>{product.category}</Text>
-              <Text style={styles.name}>{product.name}</Text>
-              <Text style={styles.price}>{money(product.price)}</Text>
-            </Card>
+              <Text style={s.vipTitle}>Earn free coffees & unlock VIP deals</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.white} />
           </Pressable>
-        ))}
-      </View>
+        )}
 
-      {count > 0 && (
-        <Pressable
-          style={styles.cartBar}
-          onPress={() => router.push('/cart')}
-        >
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{count}</Text>
-          </View>
-          <Text style={styles.cartText}>View cart</Text>
-          <Text style={styles.cartTotal}>
-            {money(cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0))}
+        {/* 5. My Usual Quick Reorder (1-Tap) */}
+        {isFeatureEnabled('my_usual') && usual && usual.items && usual.items.length > 0 && (
+          <Card style={s.usualCard}>
+            <View style={s.usualHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="flash" size={16} color={colors.caramel} />
+                <Text style={s.usualEyebrow}>YOUR DAILY USUAL</Text>
+              </View>
+              <Text style={s.usualPrice}>
+                {money(usual.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0))}
+              </Text>
+            </View>
+            <Text style={s.usualItems}>
+              {usual.items.map((i) => `${i.quantity}x ${i.product.name}`).join(' + ')}
+            </Text>
+            <Pressable
+              style={s.reorderBtn}
+              onPress={() => {
+                clearCart();
+                usual.items.forEach((item) => {
+                  addToCart(item.product, item.quantity, item.notes, item.customisations);
+                });
+                router.push('/cart');
+              }}
+            >
+              <Text style={s.reorderBtnText}>1-Tap Reorder to Cart →</Text>
+            </Pressable>
+          </Card>
+        )}
+
+        {/* 6. Popular Cafes & Restaurants Section */}
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Featured Cafes & Dining</Text>
+          <Text style={s.sectionSubtitle}>
+            {activeRestaurants.length} venue{activeRestaurants.length === 1 ? '' : 's'} near you
           </Text>
+        </View>
+
+        {activeRestaurants.map((rest) => {
+          const isPaused = rest.is_orders_paused;
+          return (
+            <Pressable
+              key={rest.id}
+              style={s.restCardWrap}
+              onPress={() => handleSelectRestaurant(rest)}
+            >
+              <Card style={s.restaurantCard}>
+                <View style={s.restHeaderRow}>
+                  <View style={s.logoCircle}>
+                    <Ionicons
+                      name={rest.slug.includes('trattoria') ? 'restaurant' : 'cafe'}
+                      size={20}
+                      color={colors.espresso}
+                    />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <View style={s.titleRatingRow}>
+                      <Text style={s.restName}>{rest.name}</Text>
+                      <View style={s.ratingBadge}>
+                        <Ionicons name="star" size={11} color="#F4B400" />
+                        <Text style={s.ratingText}>{(rest.rating || 4.9).toFixed(1)}</Text>
+                      </View>
+                    </View>
+                    <Text style={s.cuisineText}>
+                      {(rest.cuisineTypes || ['Specialty Dining']).join(' • ')}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Status & Timing Row */}
+                <View style={s.timingRow}>
+                  <View style={s.timingItem}>
+                    <Ionicons name="time-outline" size={13} color={colors.muted} />
+                    <Text style={s.timingText}>
+                      {rest.averagePrepMinutes + (rest.rush_wait_extra_minutes || 0)} mins prep
+                    </Text>
+                  </View>
+                  <View style={s.timingItem}>
+                    <Ionicons name="navigate-outline" size={13} color={colors.muted} />
+                    <Text style={s.timingText}>{rest.distance_km || 0.4} km away</Text>
+                  </View>
+                  <View style={[s.statusPill, isPaused && s.statusPillPaused]}>
+                    <Text style={[s.statusPillText, isPaused && { color: colors.danger }]}>
+                      {isPaused ? 'ORDERS PAUSED' : 'OPEN NOW'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Deal Tag */}
+                {!!rest.deals_tag && (
+                  <View style={s.dealRow}>
+                    <Ionicons name="pricetag" size={12} color={colors.caramel} />
+                    <Text style={s.dealText}>{rest.deals_tag}</Text>
+                  </View>
+                )}
+
+                {/* View Menu CTA */}
+                <View style={s.actionRow}>
+                  <Text style={s.viewMenuLink}>View Menu & Order Ahead →</Text>
+                </View>
+              </Card>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* 7. Bottom Navigation Bar */}
+      <View style={s.bottomNav}>
+        <Pressable
+          style={s.navTab}
+          onPress={() => {
+            setActiveTab('home');
+          }}
+        >
+          <Ionicons
+            name={activeTab === 'home' ? 'home' : 'home-outline'}
+            size={22}
+            color={activeTab === 'home' ? colors.espresso : colors.muted}
+          />
+          <Text style={[s.navTabText, activeTab === 'home' && s.navTabTextActive]}>Home</Text>
         </Pressable>
-      )}
+
+        <Pressable
+          style={s.navTab}
+          onPress={() => {
+            setActiveTab('search');
+            router.push('/restaurants');
+          }}
+        >
+          <Ionicons name="search-outline" size={22} color={colors.muted} />
+          <Text style={s.navTabText}>Search</Text>
+        </Pressable>
+
+        <Pressable
+          style={s.navTab}
+          onPress={() => {
+            setActiveTab('cart');
+            router.push('/cart');
+          }}
+        >
+          <View style={s.cartIconWrap}>
+            <Ionicons name="bag-handle-outline" size={22} color={colors.muted} />
+            {count > 0 && (
+              <View style={s.cartBadge}>
+                <Text style={s.cartBadgeText}>{count}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={s.navTabText}>Cart</Text>
+        </Pressable>
+
+        <Pressable
+          style={s.navTab}
+          onPress={() => {
+            setActiveTab('orders');
+            router.push('/orders');
+          }}
+        >
+          <Ionicons name="receipt-outline" size={22} color={colors.muted} />
+          <Text style={s.navTabText}>Orders</Text>
+        </Pressable>
+
+        <Pressable
+          style={s.navTab}
+          onPress={() => {
+            setActiveTab('profile');
+            router.push('/rewards');
+          }}
+        >
+          <Ionicons name="person-outline" size={22} color={colors.muted} />
+          <Text style={s.navTabText}>Rewards</Text>
+        </Pressable>
+      </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  top: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginTop: 8,
-  },
-  restaurantSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  locationPin: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#F8EFE4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  restaurantSwitchText: {
-    color: colors.caramel,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    maxWidth: 200,
-  },
-  brand: {
-    color: colors.espresso,
-    fontSize: 24,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  addressText: {
-    color: colors.muted,
-    fontSize: 11,
-    marginTop: 1,
-  },
-  topActions: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  browseCafesBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  admin: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modeRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    borderRadius: 15,
-    padding: 4,
-    marginTop: 16,
-  },
-  mode: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 11,
-    borderRadius: 12,
-  },
-  modeActive: {
-    backgroundColor: colors.espresso,
-  },
-  modeText: {
-    color: colors.muted,
-    fontWeight: '700',
-  },
-  modeTextActive: {
-    color: colors.white,
-  },
-  tablePicker: {
-    backgroundColor: colors.white,
-    borderRadius: 17,
-    padding: 14,
-    marginTop: 10,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  tablePickerTitle: {
-    color: colors.ink,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  tablePickerHelp: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  tableChoice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    padding: 13,
-    borderRadius: 12,
-    backgroundColor: colors.cream,
-  },
-  tableChoiceActive: {
-    backgroundColor: colors.espresso,
-  },
-  tableChoiceText: {
-    color: colors.espresso,
-    fontWeight: '800',
-  },
-  hero: {
-    backgroundColor: colors.espresso,
-    borderRadius: 26,
-    padding: 24,
-    marginVertical: 16,
-  },
-  heroSmall: {
-    color: '#DDBB9B',
-    fontWeight: '800',
-    letterSpacing: 1.4,
-    fontSize: 11,
-  },
-  heroTitle: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 25,
-    lineHeight: 32,
-    marginVertical: 12,
-  },
-  heroText: {
-    color: '#E7DCD5',
-    fontSize: 14,
-  },
-  customerNav: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 13,
-  },
-  navItem: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: 15,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  navIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    backgroundColor: colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navLabel: {
-    color: colors.ink,
-    fontWeight: '800',
-    fontSize: 10,
-    marginTop: 4,
-  },
-  loyaltyCard: {
-    backgroundColor: '#335943',
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 13,
-  },
-  loyaltyTop: {
+const s = StyleSheet.create({
+  topHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 10,
+    paddingTop: 4,
   },
-  cardEyebrow: {
-    color: '#BFD4C4',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
-  points: {
-    color: colors.white,
-    fontSize: 26,
-    fontWeight: '900',
-    marginTop: 4,
-  },
-  giftCircle: {
-    width: 47,
-    height: 47,
+  locationWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pinCircle: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    backgroundColor: '#527A60',
+    backgroundColor: colors.cream,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loyaltyTitle: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 14,
-    marginTop: 13,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 5,
-    backgroundColor: '#527A60',
-    overflow: 'hidden',
-    marginTop: 10,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 5,
-    backgroundColor: '#E8C68D',
-  },
-  loyaltyBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 9,
-  },
-  loyaltyHelp: {
-    color: '#D6E4D9',
-    fontSize: 10,
-  },
-  viewLink: {
-    color: colors.caramel,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  orderCard: {
+  pickupLabel: { fontSize: 9, fontWeight: '800', color: colors.caramel, letterSpacing: 0.8 },
+  locationText: { fontSize: 14, fontWeight: '900', color: colors.espresso },
+  adminBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.white,
-    borderRadius: 17,
-    padding: 13,
-    marginBottom: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
     borderWidth: 1,
-    borderColor: '#CDE0D1',
-  },
-  orderIcon: {
-    width: 45,
-    height: 45,
-    borderRadius: 14,
-    backgroundColor: colors.greenSoft,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  orderEyebrow: {
-    color: colors.green,
-    fontWeight: '800',
-    fontSize: 9,
-    letterSpacing: 0.7,
-  },
-  orderTitle: {
-    color: colors.ink,
-    fontWeight: '800',
-    fontSize: 16,
-    marginTop: 3,
-  },
-  orderHelp: {
-    color: colors.muted,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  offerHeader: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    marginBottom: 9,
-  },
-  offerCard: {
-    backgroundColor: '#FFF8EB',
-    borderRadius: 17,
-    padding: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    borderWidth: 1,
-    borderColor: '#EBD9B6',
-    marginBottom: 18,
-  },
-  offerIcon: {
-    width: 43,
-    height: 43,
+    backgroundColor: colors.white,
     borderRadius: 14,
-    backgroundColor: '#F6E9D2',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 12,
+    height: 46,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: 12,
   },
-  offerTitle: {
-    color: colors.espresso,
-    fontWeight: '900',
-  },
-  offerText: {
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 3,
-  },
-  sectionRow: {
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 13, color: colors.ink },
+  contentContainer: { paddingBottom: 90 },
+  categoryScroll: { flexDirection: 'row', marginBottom: 14 },
+  catPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: colors.cream,
+    marginRight: 8,
+  },
+  catPillActive: { backgroundColor: colors.espresso },
+  catPillText: { fontSize: 12, fontWeight: '800', color: colors.espresso },
+  catPillTextActive: { color: colors.white },
+  vipBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#335943',
+    borderRadius: 16,
+    padding: 14,
     marginBottom: 14,
   },
-  heading: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.ink,
-  },
-  count: {
-    color: colors.muted,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -6,
-  },
-  productWrap: {
-    width: '50%',
-    padding: 6,
-  },
-  product: {
-    padding: 13,
-    minHeight: 208,
-  },
-  imageWrap: {
-    position: 'relative',
-    marginBottom: 12,
-  },
-  productImage: {
-    width: '100%',
-    height: 100,
-    borderRadius: 15,
-  },
-  category: {
-    color: colors.caramel,
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  name: {
-    color: colors.ink,
-    fontSize: 15,
-    fontWeight: '700',
-    marginVertical: 6,
-  },
-  price: {
-    color: colors.coffee,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  cartBar: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 18,
-    height: 60,
-    backgroundColor: colors.espresso,
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-  },
-  badge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.caramel,
+  vipTagRow: { flexDirection: 'row', gap: 8, marginBottom: 2 },
+  vipBadgeText: { fontSize: 9, fontWeight: '900', color: '#E8C68D', letterSpacing: 0.8 },
+  streakBadgeText: { fontSize: 9, fontWeight: '900', color: '#FFD166' },
+  vipTitle: { fontSize: 13, fontWeight: '800', color: colors.white },
+  usualCard: { padding: 12, marginBottom: 14 },
+  usualHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  usualEyebrow: { fontSize: 10, fontWeight: '800', color: colors.caramel, letterSpacing: 0.8 },
+  usualPrice: { fontSize: 13, fontWeight: '900', color: colors.espresso },
+  usualItems: { fontSize: 13, fontWeight: '700', color: colors.ink, marginBottom: 8 },
+  reorderBtn: { backgroundColor: colors.espresso, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  reorderBtnText: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  sectionHeader: { marginBottom: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: '900', color: colors.ink },
+  sectionSubtitle: { fontSize: 12, color: colors.muted, marginTop: 1 },
+  restCardWrap: { marginBottom: 14 },
+  restaurantCard: { padding: 14 },
+  restHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  logoCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.cream,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: {
-    color: colors.white,
-    fontWeight: '800',
+  titleRatingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  restName: { fontSize: 16, fontWeight: '900', color: colors.ink },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.cream,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  cartText: {
-    flex: 1,
-    color: colors.white,
-    fontWeight: '700',
-    marginLeft: 12,
+  ratingText: { fontSize: 11, fontWeight: '800', color: colors.espresso },
+  cuisineText: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  timingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 8,
+    marginBottom: 8,
   },
-  cartTotal: {
-    color: colors.white,
-    fontWeight: '800',
-  },
-  error: {
-    color: colors.danger,
-    backgroundColor: '#FBE8E5',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  soldBadge: {
+  timingItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  timingText: { fontSize: 11, color: colors.muted },
+  statusPill: { marginLeft: 'auto', backgroundColor: '#E6F4EA', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
+  statusPillPaused: { backgroundColor: '#FDE8E8' },
+  statusPillText: { fontSize: 9, fontWeight: '800', color: colors.green },
+  dealRow: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFF8EB', padding: 6, borderRadius: 6, marginBottom: 8 },
+  dealText: { fontSize: 11, fontWeight: '800', color: colors.espresso },
+  actionRow: { borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 8, alignItems: 'flex-end' },
+  viewMenuLink: { color: colors.coffee, fontWeight: '800', fontSize: 12 },
+  bottomNav: {
     position: 'absolute',
-    backgroundColor: colors.espresso,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 62,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingBottom: 4,
+  },
+  navTab: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  navTabText: { fontSize: 10, fontWeight: '700', color: colors.muted, marginTop: 2 },
+  navTabTextActive: { color: colors.espresso, fontWeight: '800' },
+  cartIconWrap: { position: 'relative' },
+  cartBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    width: 16,
+    height: 16,
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  soldText: {
-    color: colors.white,
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  vipTagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  vipPill: {
     backgroundColor: colors.caramel,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  vipPillText: {
-    color: colors.white,
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  streakPill: {
-    backgroundColor: '#FF6B4A',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  streakPillText: {
-    color: colors.white,
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  usualCard: {
-    backgroundColor: '#FFFDF9',
-    borderColor: '#EBD8B8',
-    borderWidth: 1,
-    borderRadius: 16,
-    marginBottom: 16,
-    padding: 14,
-  },
-  usualHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  usualTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.caramel,
-    letterSpacing: 0.5,
-  },
-  usualPrice: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: colors.espresso,
-  },
-  usualItemsText: {
-    fontSize: 13,
-    color: colors.ink,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  reorderUsualBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.espresso,
-    paddingVertical: 10,
-    borderRadius: 12,
   },
-  reorderUsualBtnText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 13,
-  },
+  cartBadgeText: { color: colors.white, fontSize: 9, fontWeight: '900' },
 });
