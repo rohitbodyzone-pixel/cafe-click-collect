@@ -341,7 +341,7 @@ export default function CustomerMarketplaceHome() {
                 </Text>
               </View>
               <Pressable style={s.viewRewardsBtn} onPress={() => router.push('/rewards')}>
-                <Text style={s.viewRewardsText}>View Passes →</Text>
+                <Text style={s.viewRewardsText}>View Rewards →</Text>
               </Pressable>
             </View>
           </Card>

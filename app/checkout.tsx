@@ -6,6 +6,7 @@ import { PaymentMethod, useOrders } from "@/src/context/OrderContext";
 import { usePaymentSettings } from "@/src/context/PaymentSettingsContext";
 import { StripePaymentForm } from "@/src/components/StripePaymentForm";
 import { RewardsSummary } from "@/src/components/RewardsSummary";
+import { useLoyalty } from "@/src/context/LoyaltyContext";
 import { money } from "@/src/data/products";
 import { colors } from "@/src/theme";
 
@@ -23,6 +24,8 @@ export default function Checkout() {
     orderMode,
     table,
     orderNotes,
+    promoCode,
+    redeemFreeCoffee,
     setOrderNotes,
     placeOrder,
     startOnlinePayment,
@@ -30,6 +33,7 @@ export default function Checkout() {
     finishOnlinePayment,
   } = useOrders();
   const payments = usePaymentSettings();
+  const { promos, balance, settings } = useLoyalty();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(
@@ -42,6 +46,12 @@ export default function Checkout() {
     (sum, item) => sum + item.unitPrice * item.quantity,
     0,
   );
+  const promo = promos.find(item => item.enabled && item.code === (promoCode || '').trim().toUpperCase() && subtotal >= item.minimumSpend && (!item.expiresAt || new Date(item.expiresAt) >= new Date()));
+  const promoDiscount = promo ? (promo.discountType === 'percent' ? subtotal * promo.discountValue / 100 : promo.discountValue) : 0;
+  const coffees = cart.filter(item => item.product.category === 'Coffee');
+  const canRedeem = settings.enabled && balance.freeCoffees > 0 && coffees.length > 0;
+  const freeDiscount = redeemFreeCoffee && canRedeem ? Math.min(...coffees.map(item => item.unitPrice), settings.freeCoffeeMaxCents / 100) : 0;
+  const finalTotal = Math.max(0, subtotal - Math.min(subtotal, promoDiscount + freeDiscount));
   const isTable = orderMode === "table";
   useEffect(() => {
     if (!payments.payAtCounterEnabled && method === "pay_at_counter")
@@ -203,8 +213,8 @@ export default function Checkout() {
             busy
               ? "Starting checkout…"
               : method === "pay_at_counter"
-                ? "Place order"
-                : "Continue to secure payment"
+                ? `Place order · ${money(finalTotal)}`
+                : `Continue to secure payment · ${money(finalTotal)}`
           }
           disabled={busy || !cart.length || !valid}
           onPress={() => void continueCheckout()}

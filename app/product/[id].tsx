@@ -117,10 +117,19 @@ export default function ProductDetails() {
         <Text style={styles.price}>{money(product.price)}</Text>
       </View>
       <Text style={styles.description}>{product.description}</Text>
-      {applied.map((group) => (
-        <View key={group.id}>
-          <Text style={styles.label}>{group.name}</Text>
-          <View style={styles.options}>
+      {applied.map((group) => {
+        const isOptional = group.kind === "extras";
+        return (
+          <View key={group.id} style={styles.groupContainer}>
+            <View style={styles.groupHeaderRow}>
+              <Text style={styles.label}>{group.name}</Text>
+              <View style={[styles.reqBadge, isOptional ? styles.optBadge : styles.reqBadgeActive]}>
+                <Text style={[styles.reqBadgeText, isOptional ? styles.optBadgeText : styles.reqBadgeTextActive]}>
+                  {isOptional ? "Optional" : "Required"}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.options}>
             {group.options.map((option) => {
               const active = (selected[group.id] ?? []).includes(option.id);
               return (
@@ -151,7 +160,8 @@ export default function ProductDetails() {
             })}
           </View>
         </View>
-      ))}
+      );
+    })}
       <Text style={styles.label}>Quantity</Text>
       <View style={styles.stepper}>
         <Pressable
@@ -220,12 +230,41 @@ const styles = StyleSheet.create({
   title: { flex: 1, color: colors.ink, fontSize: 27, fontWeight: "800" },
   price: { color: colors.coffee, fontSize: 22, fontWeight: "800" },
   description: { color: colors.muted, lineHeight: 23, marginBottom: 12 },
+  groupContainer: { marginTop: 14 },
+  groupHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
   label: {
     color: colors.ink,
     fontSize: 15,
     fontWeight: "700",
-    marginTop: 14,
-    marginBottom: 9,
+  },
+  reqBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: colors.cream,
+  },
+  reqBadgeActive: {
+    backgroundColor: "rgba(200, 138, 82, 0.15)",
+  },
+  optBadge: {
+    backgroundColor: colors.cream,
+  },
+  reqBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  reqBadgeTextActive: {
+    color: colors.caramel,
+    fontWeight: "800",
+  },
+  optBadgeText: {
+    color: colors.muted,
   },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   option: {
