@@ -51,7 +51,6 @@ const AdminLink = ({
     | "/admin-tables"
     | "/admin-customisations"
     | "/admin-loyalty"
-    | "/admin-payments"
     | "/admin-staff"
     | "/super-admin";
 }) => (
@@ -420,6 +419,24 @@ export default function Admin() {
           text="Manage dining tables, QR table codes and service stations"
           route="/admin-tables"
         />
+        <AdminLink
+          icon="time-outline"
+          title="Click & Collect Time Slots"
+          text="Operating hours, pickup intervals, capacity and slot limits"
+          route="/admin-pickup-settings"
+        />
+        <AdminLink
+          icon="people-outline"
+          title="Staff & Roles Management"
+          text="Team member accounts, PINs, Kitchen/Counter/Manager roles"
+          route="/admin-staff"
+        />
+        <AdminLink
+          icon="wallet-outline"
+          title="Payouts & Settlement Ledger"
+          text="Gross sales, Stripe Connect transfers, app fees & direct bank payouts"
+          route="/admin-payouts"
+        />
 
         {/* Storefront Images & Branding Management */}
         <Card style={styles.brandingCard}>
@@ -520,12 +537,14 @@ export default function Admin() {
               />
             )}
 
-            <AdminLink
-              icon="wallet-outline"
-              title="Payouts & Settlement Ledger"
-              text="Gross sales, Stripe Connect transfers, app fees & direct bank payouts"
-              route="/admin-payouts"
-            />
+            {isFeatureEnabled('ai_copilot') && (
+              <AdminLink
+                icon="sparkles-outline"
+                title="AI Copilot & Decision Insights"
+                text="Daily briefing, expected busy times, top sellers & price suggestions"
+                route="/admin-ai"
+              />
+            )}
 
             {isFeatureEnabled('social_copywriter') && (
               <AdminLink
@@ -536,19 +555,10 @@ export default function Admin() {
               />
             )}
 
-            {isFeatureEnabled('ai_copilot') && (
-              <AdminLink
-                icon="sparkles-outline"
-                title="AI & Analytics Copilot"
-                text="Demand Forecast, Health Score (0-100), Menu BCG Matrix, Win-Back & Memory"
-                route="/admin-ai"
-              />
-            )}
-
             {isFeatureEnabled('inventory_tracking') && (
               <AdminLink
                 icon="construct-outline"
-                title="Operations & Automation Hub"
+                title="Operations, Inventory & Hardware"
                 text="Smart Inventory, AI Staff Roster, Checklists, Wait Balancer & Hardware"
                 route="/admin-operations"
               />
@@ -556,8 +566,8 @@ export default function Admin() {
 
             <AdminLink
               icon="stats-chart-outline"
-              title="Sales & Analytics"
-              text="Daily revenue, top-selling items, hourly distribution"
+              title="Sales & Detailed Analytics"
+              text="Daily revenue, top-selling items, hourly distribution & ticket trends"
               route="/admin-analytics"
             />
             <AdminLink
@@ -567,28 +577,10 @@ export default function Admin() {
               route="/admin-customisations"
             />
             <AdminLink
-              icon="time-outline"
-              title="Click & Collect Time Slots"
-              text="Operating hours, pickup intervals, capacity and slot limits"
-              route="/admin-pickup-settings"
-            />
-            <AdminLink
               icon="gift-outline"
               title="Loyalty & Promotions"
               text="Points system, discount codes, review shield & coffee passes"
               route="/admin-loyalty"
-            />
-            <AdminLink
-              icon="card-outline"
-              title="Payment Settings"
-              text="Stripe test mode card configuration & counter payment toggle"
-              route="/admin-payments"
-            />
-            <AdminLink
-              icon="people-outline"
-              title="Staff & Roles Management"
-              text="Team member accounts, PINs, Kitchen/Counter/Manager roles"
-              route="/admin-staff"
             />
           </View>
         )}

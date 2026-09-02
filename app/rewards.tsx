@@ -67,6 +67,21 @@ export default function RewardsScreen() {
   return (
     <Screen>
       <Header title="Rewards & Loyalty" />
+
+      {/* Unified Loyalty / Prepaid Passes Switcher */}
+      {isFeatureEnabled('prepaid_passes') && (
+        <View style={s.tabBar}>
+          <Pressable style={[s.tabPill, s.tabPillActive]}>
+            <Ionicons name="star" size={14} color={colors.white} />
+            <Text style={[s.tabPillText, s.tabPillTextActive]}>Stamp Card & Rewards</Text>
+          </Pressable>
+          <Pressable style={s.tabPill} onPress={() => router.push('/passes')}>
+            <Ionicons name="ticket-outline" size={14} color={colors.espresso} />
+            <Text style={s.tabPillText}>Prepaid Passes →</Text>
+          </Pressable>
+        </View>
+      )}
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         {/* Loyalty Hero Balance */}
         <View style={s.hero}>
@@ -227,6 +242,35 @@ const s = StyleSheet.create({
     borderRadius: 10,
   },
   googleWalletText: { color: colors.white, fontWeight: '800', fontSize: 11 },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.cream,
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 14,
+    gap: 4,
+  },
+  tabPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  tabPillActive: {
+    backgroundColor: colors.espresso,
+  },
+  tabPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.espresso,
+  },
+  tabPillTextActive: {
+    color: colors.white,
+    fontWeight: '800',
+  },
   headingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

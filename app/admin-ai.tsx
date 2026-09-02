@@ -104,7 +104,7 @@ export default function AdminAIScreen() {
   return (
     <Screen>
       <Header
-        title="Restaurant AI & Analytics Copilot"
+        title="AI Copilot & Decision Insights"
         right={
           <Pressable style={s.adminBtn} onPress={() => router.replace('/admin')}>
             <Ionicons name="grid-outline" size={18} color={colors.espresso} />
@@ -114,8 +114,8 @@ export default function AdminAIScreen() {
 
       {/* Header Banner */}
       <View style={s.headerBar}>
-        <Text style={s.subHeader}>AI & PREDICTIVE ANALYTICS · {currentRestaurant.name.toUpperCase()}</Text>
-        <Text style={s.title}>Autonomous Restaurant Intelligence</Text>
+        <Text style={s.subHeader}>AI & DECISION INSIGHTS · {currentRestaurant.name.toUpperCase()}</Text>
+        <Text style={s.title}>Daily Briefing & Performance Copilot</Text>
       </View>
 
       {/* Navigation Tabs */}
@@ -125,7 +125,7 @@ export default function AdminAIScreen() {
           onPress={() => setCurrentTab('copilot')}
         >
           <Ionicons name="sparkles" size={16} color={currentTab === 'copilot' ? colors.white : colors.espresso} />
-          <Text style={[s.tabText, currentTab === 'copilot' && s.tabTextActive]}>Copilot & Health</Text>
+          <Text style={[s.tabText, currentTab === 'copilot' && s.tabTextActive]}>Daily Briefing & Health</Text>
         </Pressable>
 
         <Pressable
@@ -133,7 +133,7 @@ export default function AdminAIScreen() {
           onPress={() => setCurrentTab('forecast')}
         >
           <Ionicons name="trending-up" size={16} color={currentTab === 'forecast' ? colors.white : colors.espresso} />
-          <Text style={[s.tabText, currentTab === 'forecast' && s.tabTextActive]}>Demand Forecast</Text>
+          <Text style={[s.tabText, currentTab === 'forecast' && s.tabTextActive]}>Expected Busy Times</Text>
         </Pressable>
 
         <Pressable
@@ -141,7 +141,7 @@ export default function AdminAIScreen() {
           onPress={() => setCurrentTab('menu_matrix')}
         >
           <Ionicons name="pie-chart" size={16} color={currentTab === 'menu_matrix' ? colors.white : colors.espresso} />
-          <Text style={[s.tabText, currentTab === 'menu_matrix' && s.tabTextActive]}>Menu Optimizer</Text>
+          <Text style={[s.tabText, currentTab === 'menu_matrix' && s.tabTextActive]}>Menu Performance</Text>
         </Pressable>
 
         <Pressable
@@ -149,7 +149,7 @@ export default function AdminAIScreen() {
           onPress={() => setCurrentTab('pricing')}
         >
           <Ionicons name="pricetag" size={16} color={currentTab === 'pricing' ? colors.white : colors.espresso} />
-          <Text style={[s.tabText, currentTab === 'pricing' && s.tabTextActive]}>Price Optimizer</Text>
+          <Text style={[s.tabText, currentTab === 'pricing' && s.tabTextActive]}>Price Suggestions</Text>
         </Pressable>
 
         <Pressable
@@ -157,7 +157,7 @@ export default function AdminAIScreen() {
           onPress={() => setCurrentTab('winback')}
         >
           <Ionicons name="heart" size={16} color={currentTab === 'winback' ? colors.white : colors.espresso} />
-          <Text style={[s.tabText, currentTab === 'winback' && s.tabTextActive]}>Smart Win-Back</Text>
+          <Text style={[s.tabText, currentTab === 'winback' && s.tabTextActive]}>Bring Customers Back</Text>
         </Pressable>
 
         <Pressable
@@ -165,7 +165,7 @@ export default function AdminAIScreen() {
           onPress={() => setCurrentTab('fraud_monitor')}
         >
           <Ionicons name="shield-checkmark" size={16} color={currentTab === 'fraud_monitor' ? colors.white : colors.espresso} />
-          <Text style={[s.tabText, currentTab === 'fraud_monitor' && s.tabTextActive]}>Fraud & Waste Monitor</Text>
+          <Text style={[s.tabText, currentTab === 'fraud_monitor' && s.tabTextActive]}>Unusual Activity</Text>
         </Pressable>
 
         <Pressable
@@ -173,7 +173,7 @@ export default function AdminAIScreen() {
           onPress={() => setCurrentTab('incidents')}
         >
           <Ionicons name="newspaper" size={16} color={currentTab === 'incidents' ? colors.white : colors.espresso} />
-          <Text style={[s.tabText, currentTab === 'incidents' && s.tabTextActive]}>Restaurant Memory</Text>
+          <Text style={[s.tabText, currentTab === 'incidents' && s.tabTextActive]}>Shift & Incident History</Text>
         </Pressable>
       </ScrollView>
 
@@ -263,11 +263,11 @@ export default function AdminAIScreen() {
           </View>
         )}
 
-        {/* 2. DEMAND & HOURLY REVENUE FORECAST */}
+        {/* 2. EXPECTED BUSY TIMES & HOURLY PROJECTIONS */}
         {currentTab === 'forecast' && (
           <View style={s.tabContent}>
-            <Text style={s.sectionTitle}>AI Demand & Revenue Prediction</Text>
-            <Text style={s.sectionHelp}>Volume-weighted hour-by-hour order projections & staffing recommendation.</Text>
+            <Text style={s.sectionTitle}>Expected Busy Times & Hourly Projections</Text>
+            <Text style={s.sectionHelp}>Hour-by-hour order estimates and suggested barista cover for prep planning.</Text>
 
             {demandForecast.map((slot) => (
               <Card key={slot.hour} style={s.forecastCard}>
@@ -294,11 +294,11 @@ export default function AdminAIScreen() {
           </View>
         )}
 
-        {/* 3. MENU OPTIMIZER MATRIX (BCG MATRIX) */}
+        {/* 3. MENU PERFORMANCE (TOP SELLERS & PROFIT INSIGHTS) */}
         {currentTab === 'menu_matrix' && (
           <View style={s.tabContent}>
-            <Text style={s.sectionTitle}>AI Menu Optimizer (BCG Matrix)</Text>
-            <Text style={s.sectionHelp}>Categorized by gross profit margin and sales velocity.</Text>
+            <Text style={s.sectionTitle}>Menu Performance (Top Sellers & Profit Insights)</Text>
+            <Text style={s.sectionHelp}>Items grouped by customer popularity and profit margin to help you optimize menu placement.</Text>
 
             {menuMatrix.map((item) => (
               <Card key={item.id} style={[s.matrixCard, s[`matrix_${item.matrixCategory}`]]}>
@@ -319,12 +319,12 @@ export default function AdminAIScreen() {
           </View>
         )}
 
-        {/* 4. AI PRICE & PROFIT OPTIMIZER (HUMAN APPROVAL REQUIRED) */}
+        {/* 4. PRICE & MARGIN SUGGESTIONS (HUMAN APPROVAL REQUIRED) */}
         {currentTab === 'pricing' && (
           <View style={s.tabContent}>
-            <Text style={s.sectionTitle}>AI Price & Profit Optimizer</Text>
+            <Text style={s.sectionTitle}>Price & Margin Suggestions</Text>
             <Text style={s.sectionHelp}>
-              High-confidence margin optimizations. Mandatory human approval required before applying changes.
+              Suggested price adjustments based on sales volume. Requires your review and approval before applying.
             </Text>
 
             {recommendations.map((rec) => (
@@ -363,12 +363,12 @@ export default function AdminAIScreen() {
           </View>
         )}
 
-        {/* 5. SMART WIN-BACK CAMPAIGNS */}
+        {/* 5. BRING CUSTOMERS BACK */}
         {currentTab === 'winback' && (
           <View style={s.tabContent}>
-            <Text style={s.sectionTitle}>Smart Win-Back Campaigns</Text>
+            <Text style={s.sectionTitle}>Bring Lapsed Customers Back</Text>
             <Text style={s.sectionHelp}>
-              Automated dormant customer re-engagement. Review and approve before sending.
+              Automated re-engagement offers for regulars who haven't visited recently. Review and approve before sending.
             </Text>
 
             {winbackCampaigns.map((camp) => (
@@ -405,12 +405,12 @@ export default function AdminAIScreen() {
           </View>
         )}
 
-        {/* 6. FRAUD & WASTE MONITOR */}
+        {/* 6. UNUSUAL ACTIVITY & WASTE ALERTS */}
         {currentTab === 'fraud_monitor' && (
           <View style={s.tabContent}>
-            <Text style={s.sectionTitle}>Loss, Waste & Anomaly Monitor</Text>
+            <Text style={s.sectionTitle}>Unusual Activity & Waste Alerts</Text>
             <Text style={s.sectionHelp}>
-              Non-accusatory operational variance and pattern monitoring.
+              Monitors unusual voids, sudden volume changes, and inventory waste patterns.
             </Text>
 
             {anomalies.map((anom) => (
@@ -442,11 +442,11 @@ export default function AdminAIScreen() {
           </View>
         )}
 
-        {/* 7. RESTAURANT MEMORY & INCIDENT LOG */}
+        {/* 7. SHIFT NOTES & INCIDENT HISTORY */}
         {currentTab === 'incidents' && (
           <View style={s.tabContent}>
-            <Text style={s.sectionTitle}>Restaurant Institutional Memory</Text>
-            <Text style={s.sectionHelp}>Log and review equipment repairs, supplier notes, and health inspections.</Text>
+            <Text style={s.sectionTitle}>Shift Notes & Incident History</Text>
+            <Text style={s.sectionHelp}>Log and review equipment repairs, supply notes, and health inspections.</Text>
 
             {incidents.map((inc) => (
               <Card key={inc.id} style={s.incidentCard}>
@@ -469,10 +469,10 @@ export default function AdminAIScreen() {
 
             {/* Quick Log Incident Form */}
             <Card style={s.logFormCard}>
-              <Text style={s.logFormTitle}>Log New Incident / Maintenance Note</Text>
+              <Text style={s.logFormTitle}>Log New Shift Note / Maintenance Incident</Text>
               <TextInput
                 style={s.input}
-                placeholder="Incident Title (e.g. Grinder Blade Replacement)"
+                placeholder="Title (e.g. Grinder Blade Replacement, Milk Delivery Delay)"
                 placeholderTextColor={colors.muted}
                 value={incidentTitle}
                 onChangeText={setIncidentTitle}
@@ -492,7 +492,7 @@ export default function AdminAIScreen() {
                 value={incidentStaff}
                 onChangeText={setIncidentStaff}
               />
-              <Button label="Save to Restaurant Memory" onPress={handleLogIncident} />
+              <Button label="Save to Shift History" onPress={handleLogIncident} />
             </Card>
           </View>
         )}

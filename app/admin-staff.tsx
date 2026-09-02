@@ -7,9 +7,8 @@ import { supabase } from '@/src/lib/supabase';
 import { colors } from '@/src/theme';
 
 const availableRoles: Array<{ key: StaffRole; label: string }> = [
-  { key: 'staff', label: 'General' },
-  { key: 'kitchen', label: 'Kitchen' },
-  { key: 'counter', label: 'Counter' },
+  { key: 'counter', label: 'Counter (POS)' },
+  { key: 'kitchen', label: 'Kitchen (KDS)' },
   { key: 'manager', label: 'Manager' },
   { key: 'owner', label: 'Owner' },
 ];
@@ -20,7 +19,7 @@ export default function AdminStaff() {
   const [members, setMembers] = useState<StaffMember[]>([]);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<StaffRole>('staff');
+  const [role, setRole] = useState<StaffRole>('counter');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 

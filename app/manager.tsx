@@ -223,8 +223,8 @@ function ManagerContent() {
           />
           <ManagerActionLink
             icon="sparkles-outline"
-            title="AI & Analytics Copilot"
-            subtitle="24h demand forecast & daily briefing"
+            title="AI Copilot & Insights"
+            subtitle="Daily briefing & expected busy times"
             route="/admin-ai"
           />
         </View>

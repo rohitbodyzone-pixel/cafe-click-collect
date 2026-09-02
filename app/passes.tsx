@@ -5,11 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Header, Screen } from '@/src/components/UI';
 import { useCustomerExperience, PrepaidPassTemplate } from '@/src/context/CustomerExperienceContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
+import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
 import { money } from '@/src/data/products';
 import { colors } from '@/src/theme';
 
 export default function PassesScreen() {
   const { currentRestaurant } = useRestaurant();
+  const { isFeatureEnabled } = useFeaturePermission();
   const {
     passTemplates,
     customerPasses,
@@ -52,6 +54,18 @@ export default function PassesScreen() {
   return (
     <Screen>
       <Header title="Prepaid Passes & Wallet" />
+
+      {/* Unified Loyalty / Prepaid Passes Switcher */}
+      <View style={s.tabBar}>
+        <Pressable style={s.tabPill} onPress={() => router.push('/rewards')}>
+          <Ionicons name="star-outline" size={14} color={colors.espresso} />
+          <Text style={s.tabPillText}>← Stamp Card & Rewards</Text>
+        </Pressable>
+        <Pressable style={[s.tabPill, s.tabPillActive]}>
+          <Ionicons name="ticket" size={14} color={colors.white} />
+          <Text style={[s.tabPillText, s.tabPillTextActive]}>Prepaid Passes</Text>
+        </Pressable>
+      </View>
 
       {/* Restaurant Header */}
       <View style={s.banner}>
@@ -128,23 +142,25 @@ export default function PassesScreen() {
             </View>
           </View>
 
-          <View style={s.walletActions}>
-            <Pressable
-              style={s.appleWalletBtn}
-              onPress={() => handleAddToWallet('apple')}
-            >
-              <Ionicons name="logo-apple" size={18} color={colors.white} />
-              <Text style={s.appleWalletText}>Add to Apple Wallet</Text>
-            </Pressable>
+          {isFeatureEnabled('digital_wallet_passes') && (
+            <View style={s.walletActions}>
+              <Pressable
+                style={s.appleWalletBtn}
+                onPress={() => handleAddToWallet('apple')}
+              >
+                <Ionicons name="logo-apple" size={18} color={colors.white} />
+                <Text style={s.appleWalletText}>Add to Apple Wallet</Text>
+              </Pressable>
 
-            <Pressable
-              style={s.googleWalletBtn}
-              onPress={() => handleAddToWallet('google')}
-            >
-              <Ionicons name="card-outline" size={18} color={colors.espresso} />
-              <Text style={s.googleWalletText}>Google Wallet</Text>
-            </Pressable>
-          </View>
+              <Pressable
+                style={s.googleWalletBtn}
+                onPress={() => handleAddToWallet('google')}
+              >
+                <Ionicons name="card-outline" size={18} color={colors.espresso} />
+                <Text style={s.googleWalletText}>Google Wallet</Text>
+              </Pressable>
+            </View>
+          )}
         </Card>
 
         {/* Buy Passes Section */}
@@ -388,6 +404,35 @@ const s = StyleSheet.create({
     color: colors.espresso,
     fontWeight: '700',
     fontSize: 13,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.cream,
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 14,
+    gap: 4,
+  },
+  tabPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  tabPillActive: {
+    backgroundColor: colors.espresso,
+  },
+  tabPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.espresso,
+  },
+  tabPillTextActive: {
+    color: colors.white,
+    fontWeight: '800',
   },
   packageCard: {
     marginBottom: 12,
