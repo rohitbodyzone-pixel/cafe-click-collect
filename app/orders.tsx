@@ -7,6 +7,7 @@ import { useLoyalty } from '@/src/context/LoyaltyContext';
 import { money, paymentMethodLabel } from '@/src/data/products';
 import { ProductImage } from '@/src/components/ProductImage';
 import { RestaurantLogoImage } from '@/src/components/RestaurantImage';
+import { CustomerBottomNav } from '@/src/components/CustomerBottomNav';
 import { colors } from '@/src/theme';
 
 export default function OrdersScreen() {
@@ -128,6 +129,9 @@ export default function OrdersScreen() {
           </Pressable>
         </View>
       )}
+
+      {/* Standardized 5-Tab Customer Bottom Navigation */}
+      <CustomerBottomNav activeTab="orders" />
     </Screen>
   );
 }

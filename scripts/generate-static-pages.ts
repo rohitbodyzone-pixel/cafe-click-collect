@@ -24,6 +24,7 @@ const routes = [
   'orders',
   'rewards',
   'passes',
+  'profile',
   'menu',
   'kitchen',
   'counter',

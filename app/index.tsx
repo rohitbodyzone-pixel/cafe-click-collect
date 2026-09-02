@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Image,
   Pressable,
@@ -8,15 +8,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Screen } from '@/src/components/UI';
 import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useOrders } from '@/src/context/OrderContext';
+import { useLoyalty } from '@/src/context/LoyaltyContext';
+import { useTables } from '@/src/context/TableContext';
 import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
 import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
 import { ProductImage } from '@/src/components/ProductImage';
 import { RestaurantCoverImage, RestaurantLogoImage } from '@/src/components/RestaurantImage';
+import { CustomerBottomNav } from '@/src/components/CustomerBottomNav';
 import { colors } from '@/src/theme';
 import { money } from '@/src/data/products';
 
@@ -39,16 +42,38 @@ const CATEGORIES: FoodCategory[] = [
 ];
 
 export default function CustomerMarketplaceHome() {
-  const { restaurants, setCurrentRestaurant } = useRestaurant();
-  const { cart, orders, addToCart, clearCart } = useOrders();
+  const { table: tableCode, restaurant: restaurantSlug, r: shortSlug } =
+    useLocalSearchParams<{ table?: string; restaurant?: string; r?: string }>();
+  const { tables, loading: loadingTables } = useTables();
+  const { restaurants, setCurrentRestaurant, selectRestaurantBySlug } = useRestaurant();
+  const { cart, orders, orderMode, table, setOrderMode, addToCart, clearCart } = useOrders();
+  const { balance, settings } = useLoyalty();
   const { usual, vipTier, currentStreakDays } = useCustomerExperience();
   const { isFeatureEnabled } = useFeaturePermission();
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'cart' | 'orders' | 'profile'>('home');
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Table QR smart bypass: if table code present, set table mode automatically
+  useEffect(() => {
+    if (!tableCode || loadingTables) return;
+    const found = tables.find(
+      (item) => item.code.toLowerCase() === tableCode.toLowerCase() && item.active,
+    );
+    if (found) {
+      setOrderMode('table', found);
+    }
+  }, [tableCode, tables, loadingTables, setOrderMode]);
+
+  // Restaurant URL slug switch if needed
+  useEffect(() => {
+    const slug = restaurantSlug || shortSlug;
+    if (slug) {
+      void selectRestaurantBySlug(slug);
+    }
+  }, [restaurantSlug, shortSlug, selectRestaurantBySlug]);
 
   const activeRestaurants = useMemo(() => {
     return restaurants.filter((r) => {
@@ -86,26 +111,39 @@ export default function CustomerMarketplaceHome() {
 
   return (
     <Screen>
-      {/* 1. Premium Customer Header & Location Selector */}
+      {/* 1. Premium Customer Header & Mode Switcher */}
       <View style={s.topHeader}>
         <View style={s.locationWrap}>
           <View style={s.pinCircle}>
             <Ionicons name="location" size={14} color={colors.caramel} />
           </View>
           <View>
-            <Text style={s.pickupLabel}>CLICK & COLLECT LOCATION</Text>
+            <Text style={s.pickupLabel}>
+              {orderMode === 'table' ? 'TABLE DINE-IN SERVICE' : 'CLICK & COLLECT LOCATION'}
+            </Text>
             <Text style={s.locationText}>Auckland Central, NZ ▾</Text>
           </View>
         </View>
 
-        <Pressable style={s.cartPill} onPress={() => router.push('/cart')}>
-          <Ionicons name="bag-handle" size={17} color={colors.white} />
-          {cartCount > 0 && (
-            <View style={s.cartBadge}>
-              <Text style={s.cartBadgeText}>{cartCount}</Text>
-            </View>
-          )}
-        </Pressable>
+        {/* Small Header Switcher to toggle mode anytime */}
+        <View style={s.modeSwitcherRow}>
+          <Pressable
+            style={[s.modePill, orderMode === 'pickup' && s.modePillActive]}
+            onPress={() => setOrderMode('pickup')}
+          >
+            <Text style={[s.modePillText, orderMode === 'pickup' && s.modePillTextActive]}>
+              🥡 Pickup
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[s.modePill, orderMode === 'table' && s.modePillActive]}
+            onPress={() => setOrderMode('table')}
+          >
+            <Text style={[s.modePillText, orderMode === 'table' && s.modePillTextActive]}>
+              🍽️ Dine In
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* 2. Global Customer Search Bar */}
@@ -126,6 +164,85 @@ export default function CustomerMarketplaceHome() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        {/* Starting Experience: "How would you like to order?" */}
+        {!search && (
+          <View style={s.startSection}>
+            <Text style={s.startSectionEyebrow}>START ORDER</Text>
+            <Text style={s.startSectionTitle}>How would you like to order?</Text>
+
+            <View style={s.startCardsRow}>
+              <Pressable
+                style={[s.startCard, orderMode === 'pickup' && s.startCardActive]}
+                onPress={() => setOrderMode('pickup')}
+              >
+                <View style={[s.startIconWrap, orderMode === 'pickup' && s.startIconWrapActive]}>
+                  <Text style={s.startEmoji}>🥡</Text>
+                </View>
+                <Text style={[s.startCardTitle, orderMode === 'pickup' && s.startCardTitleActive]}>
+                  PICKUP
+                </Text>
+                <Text style={s.startCardSub}>Order ahead & collect</Text>
+                {orderMode === 'pickup' && (
+                  <View style={s.selectedBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color={colors.espresso} />
+                  </View>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={[s.startCard, orderMode === 'table' && s.startCardActive]}
+                onPress={() => setOrderMode('table')}
+              >
+                <View style={[s.startIconWrap, orderMode === 'table' && s.startIconWrapActive]}>
+                  <Text style={s.startEmoji}>🍽️</Text>
+                </View>
+                <Text style={[s.startCardTitle, orderMode === 'table' && s.startCardTitleActive]}>
+                  DINE IN
+                </Text>
+                <Text style={s.startCardSub}>
+                  {table ? `Seated at ${table.name}` : 'Order at your table'}
+                </Text>
+                {orderMode === 'table' && (
+                  <View style={s.selectedBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color={colors.espresso} />
+                  </View>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* Contextual Rewards Reminder on Home */}
+        {!search && isFeatureEnabled('loyalty_rewards') && balance.freeCoffees > 0 && (
+          <Pressable style={s.rewardReminderBanner} onPress={() => router.push('/profile')}>
+            <View style={s.reminderIconCircle}>
+              <Ionicons name="gift" size={18} color={colors.white} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.reminderBannerTitle}>
+                🎉 You have {balance.freeCoffees} free coffee reward ready!
+              </Text>
+              <Text style={s.reminderBannerSub}>Tap to view your profile and rewards →</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.white} />
+          </Pressable>
+        )}
+
+        {!search && isFeatureEnabled('loyalty_rewards') && balance.freeCoffees === 0 && balance.coffeeStamps > 0 && (
+          <Pressable style={s.rewardReminderBanner} onPress={() => router.push('/profile')}>
+            <View style={[s.reminderIconCircle, { backgroundColor: colors.caramel }]}>
+              <Ionicons name="star" size={16} color={colors.white} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.reminderBannerTitle}>
+                ⭐ {Math.max(0, settings.coffeeGoal - balance.coffeeStamps)} more stamp{settings.coffeeGoal - balance.coffeeStamps === 1 ? '' : 's'} for a free coffee!
+              </Text>
+              <Text style={s.reminderBannerSub}>Earn points and stamps with every drink →</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.white} />
+          </Pressable>
+        )}
+
         {/* 3. Premium Featured Discovery Hero */}
         {featuredRestaurant && !search && (
           <Pressable
@@ -327,7 +444,7 @@ export default function CustomerMarketplaceHome() {
           </View>
         )}
 
-        {/* 7. Loyalty Rewards & Passes Teaser */}
+                 {/* 7. Loyalty Rewards & Passes Teaser (Links to Profile) */}
         {isFeatureEnabled('loyalty_rewards') && (
           <Card style={s.loyaltyTeaserCard}>
             <View style={s.loyaltyRow}>
@@ -340,99 +457,16 @@ export default function CustomerMarketplaceHome() {
                   {vipTier ? `${vipTier} Member · ` : ''}Earn rewards on every handcrafted coffee
                 </Text>
               </View>
-              <Pressable style={s.viewRewardsBtn} onPress={() => router.push('/rewards')}>
-                <Text style={s.viewRewardsText}>View Rewards →</Text>
+              <Pressable style={s.viewRewardsBtn} onPress={() => router.push('/profile')}>
+                <Text style={s.viewRewardsText}>View Profile →</Text>
               </Pressable>
             </View>
           </Card>
         )}
       </ScrollView>
 
-      {/* 8. Modern 5-Tab Customer Bottom Navigation */}
-      <View style={s.bottomNavBar}>
-        <Pressable
-          style={s.navItem}
-          onPress={() => {
-            setActiveTab('home');
-            setSearch('');
-            setSelectedCategory(null);
-          }}
-        >
-          <Ionicons
-            name={activeTab === 'home' ? 'home' : 'home-outline'}
-            size={22}
-            color={activeTab === 'home' ? colors.espresso : colors.muted}
-          />
-          <Text style={[s.navLabel, activeTab === 'home' && s.navLabelActive]}>Home</Text>
-        </Pressable>
-
-        <Pressable
-          style={s.navItem}
-          onPress={() => {
-            setActiveTab('search');
-            router.push('/restaurants');
-          }}
-        >
-          <Ionicons
-            name={activeTab === 'search' ? 'search' : 'search-outline'}
-            size={22}
-            color={activeTab === 'search' ? colors.espresso : colors.muted}
-          />
-          <Text style={[s.navLabel, activeTab === 'search' && s.navLabelActive]}>Explore</Text>
-        </Pressable>
-
-        <Pressable
-          style={s.navItem}
-          onPress={() => {
-            setActiveTab('cart');
-            router.push('/cart');
-          }}
-        >
-          <View>
-            <Ionicons
-              name={activeTab === 'cart' ? 'bag-handle' : 'bag-handle-outline'}
-              size={22}
-              color={activeTab === 'cart' ? colors.espresso : colors.muted}
-            />
-            {cartCount > 0 && (
-              <View style={s.navCartDot}>
-                <Text style={s.navCartDotText}>{cartCount}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[s.navLabel, activeTab === 'cart' && s.navLabelActive]}>Cart</Text>
-        </Pressable>
-
-        <Pressable
-          style={s.navItem}
-          onPress={() => {
-            setActiveTab('orders');
-            router.push('/orders');
-          }}
-        >
-          <Ionicons
-            name={activeTab === 'orders' ? 'receipt' : 'receipt-outline'}
-            size={22}
-            color={activeTab === 'orders' ? colors.espresso : colors.muted}
-          />
-          <Text style={[s.navLabel, activeTab === 'orders' && s.navLabelActive]}>Orders</Text>
-        </Pressable>
-
-        <Pressable
-          style={s.navItem}
-          onPress={() => {
-            setActiveTab('profile');
-            router.push('/rewards');
-          }}
-        >
-          <Ionicons
-            name={activeTab === 'profile' ? 'person' : 'person-outline'}
-            size={22}
-            color={activeTab === 'profile' ? colors.espresso : colors.muted}
-          />
-          <Text style={[s.navLabel, activeTab === 'profile' && s.navLabelActive]}>Loyalty</Text>
-        </Pressable>
-      </View>
+      {/* Standardized 5-Tab Customer Bottom Navigation */}
+      <CustomerBottomNav activeTab="home" />
     </Screen>
   );
 }
@@ -447,7 +481,7 @@ const s = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 10,
   },
-  locationWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  locationWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   pinCircle: {
     width: 34,
     height: 34,
@@ -457,30 +491,31 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   pickupLabel: { fontSize: 9, fontWeight: '800', color: colors.caramel, letterSpacing: 0.8 },
-  locationText: { fontSize: 14, fontWeight: '800', color: colors.espresso },
-  cartPill: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  locationText: { fontSize: 13, fontWeight: '800', color: colors.espresso },
+  modeSwitcherRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.cream,
+    borderRadius: 12,
+    padding: 2,
+    gap: 2,
+  },
+  modePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  modePillActive: {
     backgroundColor: colors.espresso,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  cartBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: colors.caramel,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: colors.white,
+  modePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.espresso,
   },
-  cartBadgeText: { color: colors.white, fontSize: 10, fontWeight: '900' },
+  modePillTextActive: {
+    color: colors.white,
+    fontWeight: '800',
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -494,6 +529,108 @@ const s = StyleSheet.create({
     borderColor: colors.line,
   },
   searchInput: { flex: 1, fontSize: 13, color: colors.ink },
+  startSection: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  startSectionEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.caramel,
+    letterSpacing: 1,
+  },
+  startSectionTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.espresso,
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  startCardsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  startCard: {
+    flex: 1,
+    backgroundColor: colors.cream,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    position: 'relative',
+  },
+  startCardActive: {
+    backgroundColor: colors.white,
+    borderColor: colors.espresso,
+  },
+  startIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  startIconWrapActive: {
+    backgroundColor: colors.cream,
+  },
+  startEmoji: {
+    fontSize: 22,
+  },
+  startCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.espresso,
+  },
+  startCardTitleActive: {
+    color: colors.espresso,
+    fontWeight: '900',
+  },
+  startCardSub: {
+    fontSize: 11,
+    color: colors.muted,
+    textAlign: 'center',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  selectedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  rewardReminderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.green,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+  },
+  reminderIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reminderBannerTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  reminderBannerSub: {
+    fontSize: 11,
+    color: '#D7E5DA',
+    marginTop: 2,
+  },
   heroCard: {
     borderRadius: 20,
     overflow: 'hidden',
@@ -518,62 +655,53 @@ const s = StyleSheet.create({
     gap: 4,
     backgroundColor: colors.cream,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginBottom: 6,
   },
-  featuredDealText: { fontSize: 9, fontWeight: '900', color: colors.espresso, letterSpacing: 0.5 },
-  heroBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  featuredDealText: { fontSize: 9, fontWeight: '800', color: colors.espresso },
+  heroBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   heroLogo: { borderWidth: 2, borderColor: colors.white },
-  heroTitle: { fontSize: 21, fontWeight: '900', color: colors.white },
-  heroSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 1, marginBottom: 6 },
-  heroMetaRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  heroTitle: { fontSize: 18, fontWeight: '900', color: colors.white },
+  heroSubtitle: { fontSize: 11, color: '#D7E5DA' },
+  heroMetaRow: { flexDirection: 'row', gap: 6 },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   metaPillText: { fontSize: 11, fontWeight: '700', color: colors.white },
   usualCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFF9F3',
-    borderWidth: 1,
-    borderColor: '#FFE3D0',
-    padding: 12,
+    backgroundColor: colors.white,
     borderRadius: 16,
+    padding: 12,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
-  usualThumbWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  usualThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-  },
+  usualThumbWrap: { width: 52, height: 52, borderRadius: 12, overflow: 'hidden', marginRight: 10 },
+  usualThumb: { width: 52, height: 52 },
   usualHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  usualTag: { fontSize: 9, fontWeight: '900', color: colors.caramel, letterSpacing: 0.6 },
-  usualPrice: { fontSize: 13, fontWeight: '800', color: colors.espresso },
-  usualName: { fontSize: 14, fontWeight: '800', color: colors.ink, marginTop: 1 },
-  usualDesc: { fontSize: 11, color: colors.muted },
+  usualTag: { fontSize: 9, fontWeight: '800', color: colors.caramel, letterSpacing: 0.8 },
+  usualPrice: { fontSize: 12, fontWeight: '800', color: colors.espresso },
+  usualName: { fontSize: 13, fontWeight: '800', color: colors.ink, marginTop: 1 },
+  usualDesc: { fontSize: 11, color: colors.muted, marginTop: 1 },
   reorderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: colors.espresso,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    marginLeft: 8,
   },
   reorderBtnText: { color: colors.white, fontSize: 11, fontWeight: '800' },
   sectionHeaderRow: {
@@ -664,33 +792,4 @@ const s = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 40 },
   emptyTitle: { fontSize: 15, fontWeight: '800', color: colors.espresso, marginTop: 10 },
   emptySub: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 4 },
-  bottomNavBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    paddingVertical: 8,
-    paddingBottom: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    justifyContent: 'space-around',
-    elevation: 8,
-  },
-  navItem: { alignItems: 'center', gap: 2 },
-  navLabel: { fontSize: 10, fontWeight: '700', color: colors.muted },
-  navLabelActive: { color: colors.espresso, fontWeight: '800' },
-  navCartDot: {
-    position: 'absolute',
-    top: -2,
-    right: -6,
-    backgroundColor: colors.caramel,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navCartDotText: { color: colors.white, fontSize: 8, fontWeight: '900' },
 });

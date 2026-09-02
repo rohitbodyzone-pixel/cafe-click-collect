@@ -15,6 +15,7 @@ import { Card, Header, Screen } from '@/src/components/UI';
 import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useOrders } from '@/src/context/OrderContext';
 import { RestaurantCoverImage, RestaurantLogoImage } from '@/src/components/RestaurantImage';
+import { CustomerBottomNav } from '@/src/components/CustomerBottomNav';
 import { colors } from '@/src/theme';
 
 function formatTime(timeStr: string) {
@@ -247,6 +248,9 @@ export default function RestaurantsScreen() {
           </View>
         </View>
       )}
+
+      {/* Standardized 5-Tab Customer Bottom Navigation */}
+      <CustomerBottomNav activeTab="explore" />
     </Screen>
   );
 }

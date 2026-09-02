@@ -13,6 +13,7 @@ const routes = [
   '/orders',
   '/rewards',
   '/passes',
+  '/profile',
   '/r/common-ground/table/5',
   '/menu',
   '/kitchen',
