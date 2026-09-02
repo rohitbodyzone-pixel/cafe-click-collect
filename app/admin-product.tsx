@@ -55,7 +55,14 @@ export default function AdminProduct() {
     <View style={styles.twoColumns}><View style={{ flex: 1 }}><Text style={styles.label}>Price ($)</Text><TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="0.00" placeholderTextColor={colors.muted} keyboardType="decimal-pad" /></View><View style={styles.emojiColumn}><Text style={styles.label}>Icon</Text><TextInput style={[styles.input, { textAlign: 'center', fontSize: 21 }]} value={emoji} onChangeText={setEmoji} maxLength={4} /></View></View>
     <Text style={styles.label}>Description</Text><TextInput style={[styles.input, styles.description]} value={description} onChangeText={setDescription} placeholder="Describe this menu item" placeholderTextColor={colors.muted} multiline />
     <Text style={styles.label}>Product image</Text><Text style={styles.imageHelp}>Upload a JPG, PNG, WebP or GIF up to 5 MB. This image appears automatically on the customer menu.</Text>
-    <ProductImage uri={selectedImage?.uri || existing?.imageUrl} style={styles.preview} placeholderStyle={styles.preview} />
+    <ProductImage
+      uri={selectedImage?.uri || existing?.imageUrl}
+      category={category}
+      name={name}
+      style={styles.preview}
+      placeholderStyle={styles.preview}
+      iconSize={40}
+    />
     <View style={styles.imageActions}><Pressable style={styles.imageButton} onPress={() => void chooseImage()} disabled={saving}><Text style={styles.imageButtonText}>{selectedImage || existing?.imagePath ? 'Replace image' : 'Upload image'}</Text></Pressable>{(selectedImage || existing?.imagePath) && <Pressable style={[styles.imageButton, styles.removeImage]} onPress={() => void deleteImage()} disabled={saving}><Text style={[styles.imageButtonText, { color: colors.danger }]}>Delete image</Text></Pressable>}</View>
     <Text style={styles.label}>Customisation groups</Text><Text style={{ color: colors.muted, marginBottom: 8 }}>Choose what customers can customise for this item.</Text><View style={styles.categories}>{groups.map(group => { const active=customisationGroupIds.includes(group.id); return <Pressable key={group.id} onPress={()=>setCustomisationGroupIds(current=>active?current.filter(id=>id!==group.id):[...current,group.id])} style={[styles.category,active&&styles.categoryActive]}><Text style={[styles.categoryText,active&&{color:colors.white}]}>{group.name}</Text></Pressable>; })}</View>
     {!!error && <Text style={styles.error}>{error}</Text>}<View style={{ flex: 1, minHeight: 32 }} /><Button label={saving ? 'Saving…' : existing ? 'Save changes' : 'Add to menu'} disabled={!valid || saving} onPress={() => void save()} />

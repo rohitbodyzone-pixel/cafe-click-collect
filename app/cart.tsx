@@ -10,6 +10,8 @@ import { useProducts } from '@/src/context/ProductContext';
 import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
 import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
 import { RewardsSummary } from '@/src/components/RewardsSummary';
+import { ProductImage } from '@/src/components/ProductImage';
+import { RestaurantLogoImage } from '@/src/components/RestaurantImage';
 import { colors } from '@/src/theme';
 
 export default function Cart() {
@@ -60,6 +62,12 @@ export default function Cart() {
       ) : (
         <>
           <View style={s.restaurantBanner}>
+            <RestaurantLogoImage
+              uri={currentRestaurant.logoUrl}
+              name={restaurantName}
+              size={36}
+              style={{ marginRight: 10 }}
+            />
             <View style={{ flex: 1 }}>
               <Text style={s.bannerEyebrow}>ORDERING FROM</Text>
               <Text style={s.bannerName}>{restaurantName}</Text>
@@ -75,7 +83,15 @@ export default function Cart() {
 
           {cart.map((i) => (
             <Card key={i.cartKey} style={s.item}>
-              <View style={{ flex: 1 }}>
+              <ProductImage
+                uri={i.product.imageUrl}
+                category={i.product.category}
+                name={i.product.name}
+                style={s.cartItemThumb}
+                placeholderStyle={s.cartItemThumb}
+                iconSize={20}
+              />
+              <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={s.name}>{i.product.name}</Text>
                 {i.customisations.map((o) => (
                   <Text key={o.optionId} style={s.detail}>
@@ -114,7 +130,15 @@ export default function Cart() {
                 <Text style={s.upsellTitle}>{suggestedUpsell.rule.title}</Text>
               </View>
               <View style={s.upsellBody}>
-                <View style={{ flex: 1 }}>
+                <ProductImage
+                  uri={suggestedUpsell.product.imageUrl}
+                  category={suggestedUpsell.product.category}
+                  name={suggestedUpsell.product.name}
+                  style={s.upsellThumb}
+                  placeholderStyle={s.upsellThumb}
+                  iconSize={22}
+                />
+                <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={s.upsellProdName}>{suggestedUpsell.product.name}</Text>
                   <Text style={s.upsellDiscount}>
                     {suggestedUpsell.rule.discountPercent}% Combo Discount ·{' '}
@@ -233,6 +257,12 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
+    padding: 12,
+  },
+  cartItemThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
   },
   name: {
     fontWeight: '800',
@@ -328,6 +358,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  upsellThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
   },
   upsellProdName: {
     fontSize: 15,

@@ -24,6 +24,7 @@ import { supabase } from '@/src/lib/supabase';
 import { colors } from '@/src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { money, Product } from '@/src/data/products';
+import { ProductImage } from '@/src/components/ProductImage';
 
 export default function CounterPortalScreen() {
   return (
@@ -439,7 +440,14 @@ function CounterPortalContent() {
                     style={s.productItemCard}
                     onPress={() => handleSelectProduct(p)}
                   >
-                    <Text style={s.productEmoji}>{p.emoji || '☕'}</Text>
+                    <ProductImage
+                      uri={p.imageUrl}
+                      category={p.category}
+                      name={p.name}
+                      style={s.posProductThumb}
+                      placeholderStyle={s.posProductThumb}
+                      iconSize={22}
+                    />
                     <Text style={s.productItemName} numberOfLines={1}>
                       {p.name}
                     </Text>
@@ -574,7 +582,15 @@ function CounterPortalContent() {
               <>
                 {/* Modal Header */}
                 <View style={s.modalHeader}>
-                  <View style={{ flex: 1 }}>
+                  <ProductImage
+                    uri={customizingProduct.imageUrl}
+                    category={customizingProduct.category}
+                    name={customizingProduct.name}
+                    style={s.modalProductThumb}
+                    placeholderStyle={s.modalProductThumb}
+                    iconSize={24}
+                  />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={s.modalTitle}>{customizingProduct.name}</Text>
                     <Text style={s.modalSub}>
                       Base: {money(customizingProduct.price)} · {customizingProduct.category}
@@ -745,13 +761,23 @@ const s = StyleSheet.create({
   productItemCard: {
     width: '31%',
     backgroundColor: colors.white,
-    padding: 10,
+    padding: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
   },
-  productEmoji: { fontSize: 24, marginBottom: 4 },
+  posProductThumb: {
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  modalProductThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+  },
   productItemName: { fontSize: 12, fontWeight: '700', color: colors.ink, textAlign: 'center' },
   productItemPrice: { fontSize: 12, fontWeight: '800', color: colors.espresso, marginTop: 2 },
   modBadge: {

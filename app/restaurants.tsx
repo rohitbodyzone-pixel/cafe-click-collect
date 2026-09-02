@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, Header, Screen } from '@/src/components/UI';
 import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useOrders } from '@/src/context/OrderContext';
+import { RestaurantCoverImage, RestaurantLogoImage } from '@/src/components/RestaurantImage';
 import { colors } from '@/src/theme';
 
 function formatTime(timeStr: string) {
@@ -124,23 +125,41 @@ export default function RestaurantsScreen() {
               onPress={() => handleSelect(restaurant)}
             >
               <Card style={[s.card, isSelected && s.selectedCard]}>
+                {/* Restaurant Cover Banner */}
+                <View style={s.cardCoverWrap}>
+                  <RestaurantCoverImage
+                    uri={restaurant.coverImageUrl || restaurant.hero_image_url || restaurant.logoUrl}
+                    name={restaurant.name}
+                    style={s.cardCoverImage}
+                    placeholderStyle={s.cardCoverImage}
+                  />
+                  <View style={s.cardCoverOverlay} />
+                  <View style={s.coverBadgeRow}>
+                    <View style={[s.statusBadge, open ? s.openBadge : s.closedBadge]}>
+                      <View style={[s.statusDot, open ? s.openDot : s.closedDot]} />
+                      <Text style={[s.statusText, open ? s.openText : s.closedText]}>
+                        {open ? 'OPEN NOW' : 'CLOSED'}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <View style={s.activeBadge}>
+                        <Ionicons name="checkmark" size={12} color={colors.white} />
+                        <Text style={s.activeBadgeText}>SELECTED</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={s.coverLogoBadge}>
+                    <RestaurantLogoImage
+                      uri={restaurant.logoUrl}
+                      name={restaurant.name}
+                      size={42}
+                    />
+                  </View>
+                </View>
+
                 <View style={s.cardTop}>
                   <View style={{ flex: 1 }}>
-                    <View style={s.badgeRow}>
-                      <View style={[s.statusBadge, open ? s.openBadge : s.closedBadge]}>
-                        <View style={[s.statusDot, open ? s.openDot : s.closedDot]} />
-                        <Text style={[s.statusText, open ? s.openText : s.closedText]}>
-                          {open ? 'OPEN NOW' : 'CLOSED'}
-                        </Text>
-                      </View>
-                      {isSelected && (
-                        <View style={s.activeBadge}>
-                          <Ionicons name="checkmark" size={12} color={colors.white} />
-                          <Text style={s.activeBadgeText}>SELECTED</Text>
-                        </View>
-                      )}
-                    </View>
-
                     <Text style={s.name}>{restaurant.name}</Text>
                     {!!restaurant.description && (
                       <Text style={s.desc} numberOfLines={2}>
@@ -260,15 +279,47 @@ const s = StyleSheet.create({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.line,
+    overflow: 'hidden',
+    padding: 0,
   },
   selectedCard: {
     borderColor: colors.caramel,
     backgroundColor: '#FFFDF9',
   },
+  cardCoverWrap: {
+    height: 120,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: colors.espresso,
+  },
+  cardCoverImage: {
+    width: '100%',
+    height: 120,
+  },
+  cardCoverOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  coverBadgeRow: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    gap: 6,
+    zIndex: 2,
+  },
+  coverLogoBadge: {
+    position: 'absolute',
+    bottom: -18,
+    left: 14,
+    zIndex: 3,
+  },
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    paddingTop: 24,
+    paddingHorizontal: 14,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -338,6 +389,7 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   metaRow: {
+    marginHorizontal: 14,
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
@@ -358,6 +410,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+    marginHorizontal: 14,
     marginTop: 10,
   },
   featurePill: {
@@ -375,8 +428,9 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
   actionRow: {
-    marginTop: 12,
-    paddingTop: 8,
+    marginTop: 10,
+    marginHorizontal: 14,
+    paddingBottom: 14,
     alignItems: 'flex-end',
   },
   viewMenuText: {

@@ -9,6 +9,7 @@ import { useProducts } from '@/src/context/ProductContext';
 import { colors } from '@/src/theme';
 import { useTables } from '@/src/context/TableContext';
 import { ProductImage } from '@/src/components/ProductImage';
+import { RestaurantCoverImage, RestaurantLogoImage } from '@/src/components/RestaurantImage';
 import { useLoyalty } from '@/src/context/LoyaltyContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
@@ -68,6 +69,43 @@ export default function DedicatedMenuScreen() {
       />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContainer}>
+        {/* Restaurant Brand Hero Banner */}
+        <View style={s.restaurantHero}>
+          <RestaurantCoverImage
+            uri={
+              currentRestaurant.coverImageUrl ||
+              currentRestaurant.hero_image_url ||
+              currentRestaurant.logoUrl
+            }
+            name={currentRestaurant.name}
+            style={s.restaurantHeroCover}
+            placeholderStyle={s.restaurantHeroCover}
+          />
+          <View style={s.restaurantHeroOverlay} />
+          <View style={s.restaurantHeroContent}>
+            <RestaurantLogoImage
+              uri={currentRestaurant.logoUrl}
+              name={currentRestaurant.name}
+              size={48}
+              style={s.restaurantHeroLogo}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={s.restaurantHeroName} numberOfLines={1}>
+                {currentRestaurant.name}
+              </Text>
+              <Text style={s.restaurantHeroDesc} numberOfLines={1}>
+                {currentRestaurant.description || 'Fresh artisan specialties & crafted beverages'}
+              </Text>
+              <View style={s.restaurantHeroMeta}>
+                <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.85)" />
+                <Text style={s.restaurantHeroMetaText} numberOfLines={1}>
+                  {currentRestaurant.address || 'Auckland, NZ'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
         {/* Rush Mode Notice if Active */}
         {currentRestaurant.is_orders_paused && (
           <View style={s.pauseNotice}>
@@ -221,8 +259,11 @@ export default function DedicatedMenuScreen() {
                 <View style={s.imageWrap}>
                   <ProductImage
                     uri={product.imageUrl}
+                    category={product.category}
+                    name={product.name}
                     style={s.productImage}
                     placeholderStyle={s.productImage}
+                    iconSize={26}
                   />
                   {product.soldOut && (
                     <View style={s.soldBadge}>
@@ -231,7 +272,12 @@ export default function DedicatedMenuScreen() {
                   )}
                 </View>
                 <Text style={s.categoryText}>{product.category}</Text>
-                <Text style={s.productName}>{product.name}</Text>
+                <Text style={s.productName} numberOfLines={1}>{product.name}</Text>
+                {!!product.description && (
+                  <Text style={s.productDesc} numberOfLines={2}>
+                    {product.description}
+                  </Text>
+                )}
                 <Text style={s.priceText}>{money(product.price)}</Text>
               </Card>
             </Pressable>
@@ -258,6 +304,54 @@ export default function DedicatedMenuScreen() {
 const s = StyleSheet.create({
   topBtn: { padding: 8 },
   scrollContainer: { paddingBottom: 80 },
+  restaurantHero: {
+    height: 130,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 12,
+    backgroundColor: colors.espresso,
+  },
+  restaurantHeroCover: {
+    width: '100%',
+    height: 130,
+  },
+  restaurantHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(28, 18, 14, 0.55)',
+  },
+  restaurantHeroContent: {
+    ...StyleSheet.absoluteFillObject,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  restaurantHeroLogo: {
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  restaurantHeroName: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  restaurantHeroDesc: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 2,
+  },
+  restaurantHeroMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  restaurantHeroMetaText: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '700',
+  },
   pauseNotice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -302,7 +396,8 @@ const s = StyleSheet.create({
   soldBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   soldText: { color: colors.white, fontSize: 8, fontWeight: '800' },
   categoryText: { fontSize: 9, fontWeight: '800', color: colors.caramel, textTransform: 'uppercase' },
-  productName: { fontSize: 14, fontWeight: '800', color: colors.ink, marginVertical: 4 },
+  productName: { fontSize: 14, fontWeight: '800', color: colors.ink, marginTop: 4, marginBottom: 2 },
+  productDesc: { fontSize: 11, color: colors.muted, lineHeight: 15, marginBottom: 4 },
   priceText: { fontSize: 14, fontWeight: '900', color: colors.coffee },
   cartBar: { position: 'absolute', left: 20, right: 20, bottom: 18, height: 56, backgroundColor: colors.espresso, borderRadius: 16, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
   badge: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.caramel, alignItems: 'center', justifyContent: 'center', marginRight: 10 },

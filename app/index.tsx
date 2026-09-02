@@ -15,6 +15,8 @@ import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useOrders } from '@/src/context/OrderContext';
 import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
 import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
+import { ProductImage } from '@/src/components/ProductImage';
+import { RestaurantCoverImage, RestaurantLogoImage } from '@/src/components/RestaurantImage';
 import { colors } from '@/src/theme';
 import { money } from '@/src/data/products';
 
@@ -29,8 +31,11 @@ const CATEGORIES: FoodCategory[] = [
   { id: 'coffee', name: 'Coffee & Drinks', icon: 'cafe', tag: 'Coffee' },
   { id: 'bakery', name: 'Bakery & Pastries', icon: 'nutrition', tag: 'Bakery' },
   { id: 'pizza', name: 'Italian & Pizza', icon: 'pizza', tag: 'Italian' },
-  { id: 'healthy', name: 'Healthy Bowls', icon: 'leaf', tag: 'Breakfast' },
-  { id: 'dessert', name: 'Dessert & Sweet', icon: 'ice-cream', tag: 'Dessert' },
+  { id: 'burgers', name: 'Burgers & Grills', icon: 'fast-food', tag: 'Burgers' },
+  { id: 'healthy', name: 'Healthy Bowls', icon: 'leaf', tag: 'Healthy' },
+  { id: 'asian', name: 'Asian Kitchen', icon: 'restaurant', tag: 'Asian' },
+  { id: 'dessert', name: 'Desserts & Sweets', icon: 'ice-cream', tag: 'Dessert' },
+  { id: 'breakfast', name: 'Breakfast & Brunch', icon: 'sunny', tag: 'Breakfast' },
 ];
 
 export default function CustomerMarketplaceHome() {
@@ -55,7 +60,11 @@ export default function CustomerMarketplaceHome() {
 
       const matchCat =
         !selectedCategory ||
-        (r.cuisineTypes || []).some((c) => c.toLowerCase().includes(selectedCategory.toLowerCase()));
+        (r.cuisineTypes || []).some((c) => c.toLowerCase().includes(selectedCategory.toLowerCase())) ||
+        r.description.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        r.name.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        (selectedCategory === 'Healthy' && (r.cuisineTypes || []).some((c) => c.toLowerCase().includes('healthy') || c.toLowerCase().includes('breakfast') || c.toLowerCase().includes('salad'))) ||
+        (selectedCategory === 'Coffee' && (r.cuisineTypes || []).some((c) => c.toLowerCase().includes('cafe') || c.toLowerCase().includes('coffee')));
 
       return r.isActive && matchSearch && matchCat;
     });
@@ -123,30 +132,51 @@ export default function CustomerMarketplaceHome() {
             style={s.heroCard}
             onPress={() => handleSelectRestaurant(featuredRestaurant)}
           >
-            <Image
-              source={{
-                uri:
-                  featuredRestaurant.logoUrl ||
-                  'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=80',
-              }}
+            <RestaurantCoverImage
+              uri={
+                featuredRestaurant.coverImageUrl ||
+                featuredRestaurant.hero_image_url ||
+                featuredRestaurant.logoUrl
+              }
+              name={featuredRestaurant.name}
               style={s.heroImage}
+              placeholderStyle={s.heroImage}
             />
+            <View style={s.heroGradient} />
             <View style={s.heroOverlay}>
               <View style={s.featuredDealBadge}>
                 <Ionicons name="sparkles" size={11} color={colors.espresso} />
-                <Text style={s.featuredDealText}>FEATURED SPECIALTY ROAST</Text>
+                <Text style={s.featuredDealText}>FEATURED SPECIALTY CAFE</Text>
               </View>
-              <Text style={s.heroTitle}>{featuredRestaurant.name}</Text>
-              <Text style={s.heroSubtitle}>{featuredRestaurant.description}</Text>
+              <View style={s.heroBrandRow}>
+                <RestaurantLogoImage
+                  uri={featuredRestaurant.logoUrl}
+                  name={featuredRestaurant.name}
+                  size={36}
+                  style={s.heroLogo}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.heroTitle} numberOfLines={1}>
+                    {featuredRestaurant.name}
+                  </Text>
+                  <Text style={s.heroSubtitle} numberOfLines={1}>
+                    {featuredRestaurant.description}
+                  </Text>
+                </View>
+              </View>
 
               <View style={s.heroMetaRow}>
                 <View style={s.metaPill}>
                   <Ionicons name="star" size={11} color="#FFB800" />
-                  <Text style={s.metaPillText}>4.9 (180+)</Text>
+                  <Text style={s.metaPillText}>
+                    {featuredRestaurant.rating ? featuredRestaurant.rating.toFixed(1) : '4.9'} (180+)
+                  </Text>
                 </View>
                 <View style={s.metaPill}>
                   <Ionicons name="time-outline" size={11} color={colors.white} />
-                  <Text style={s.metaPillText}>Ready in 10-15m</Text>
+                  <Text style={s.metaPillText}>
+                    Ready in {featuredRestaurant.averagePrepMinutes || 10}–{(featuredRestaurant.averagePrepMinutes || 10) + 5}m
+                  </Text>
                 </View>
                 <View style={[s.metaPill, { backgroundColor: colors.caramel }]}>
                   <Text style={[s.metaPillText, { fontWeight: '900' }]}>Order Ahead →</Text>
@@ -159,8 +189,15 @@ export default function CustomerMarketplaceHome() {
         {/* 4. One-Tap My Usual Order (If Enabled) */}
         {isFeatureEnabled('my_usual') && usual && !search && (
           <Pressable style={s.usualCard} onPress={handleReorderUsual}>
-            <View style={s.usualIconCircle}>
-              <Ionicons name="heart" size={18} color={colors.caramel} />
+            <View style={s.usualThumbWrap}>
+              <ProductImage
+                uri={usual.items[0]?.product.imageUrl}
+                category={usual.items[0]?.product.category}
+                name={usual.items[0]?.product.name}
+                style={s.usualThumb}
+                placeholderStyle={s.usualThumb}
+                iconSize={20}
+              />
             </View>
             <View style={{ flex: 1 }}>
               <View style={s.usualHeaderRow}>
@@ -169,8 +206,12 @@ export default function CustomerMarketplaceHome() {
                   {money(usual.items.reduce((s, i) => s + i.product.price * i.quantity, 0))}
                 </Text>
               </View>
-              <Text style={s.usualName}>{usual.name || usual.items[0]?.product.name}</Text>
-              <Text style={s.usualDesc}>1-tap reorder ready in 10 mins</Text>
+              <Text style={s.usualName} numberOfLines={1}>
+                {usual.name || usual.items[0]?.product.name}
+              </Text>
+              <Text style={s.usualDesc} numberOfLines={1}>
+                {usual.items.map((i) => `${i.quantity}x ${i.product.name}`).join(' + ')}
+              </Text>
             </View>
             <View style={s.reorderBtn}>
               <Ionicons name="flash" size={13} color={colors.white} />
@@ -231,32 +272,49 @@ export default function CustomerMarketplaceHome() {
                 style={s.restaurantCard}
                 onPress={() => handleSelectRestaurant(restaurant)}
               >
-                <Image
-                  source={{
-                    uri:
-                      restaurant.logoUrl ||
-                      'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=600&q=80',
-                  }}
-                  style={s.restaurantThumb}
-                />
+                <View style={s.restaurantThumbWrap}>
+                  <RestaurantCoverImage
+                    uri={
+                      restaurant.coverImageUrl ||
+                      restaurant.hero_image_url ||
+                      restaurant.logoUrl
+                    }
+                    name={restaurant.name}
+                    style={s.restaurantThumb}
+                    placeholderStyle={s.restaurantThumb}
+                  />
+                  <View style={s.restaurantLogoBadge}>
+                    <RestaurantLogoImage
+                      uri={restaurant.logoUrl}
+                      name={restaurant.name}
+                      size={28}
+                    />
+                  </View>
+                </View>
 
                 <View style={s.restaurantBody}>
                   <View style={s.restNameRow}>
-                    <Text style={s.restaurantName}>{restaurant.name}</Text>
+                    <Text style={s.restaurantName} numberOfLines={1}>
+                      {restaurant.name}
+                    </Text>
                     <View style={s.ratingBadge}>
                       <Ionicons name="star" size={11} color="#FFB800" />
-                      <Text style={s.ratingText}>4.8</Text>
+                      <Text style={s.ratingText}>
+                        {restaurant.rating ? restaurant.rating.toFixed(1) : '4.9'}
+                      </Text>
                     </View>
                   </View>
 
                   <Text style={s.restaurantCuisine} numberOfLines={1}>
-                    {restaurant.cuisineTypes?.join(' · ') || 'Artisan Coffee & Food'} · 0.3 km
+                    {restaurant.cuisineTypes?.join(' · ') || 'Artisan Coffee & Food'} · {restaurant.distance_km ? `${restaurant.distance_km} km` : '0.3 km'}
                   </Text>
 
                   <View style={s.restaurantFooter}>
                     <View style={s.etaBadge}>
                       <Ionicons name="flash" size={11} color="#2D7D46" />
-                      <Text style={s.etaText}>Ready in 10–15 min</Text>
+                      <Text style={s.etaText}>
+                        Ready in {restaurant.averagePrepMinutes || 10}–{(restaurant.averagePrepMinutes || 10) + 5} min
+                      </Text>
                     </View>
 
                     <View style={s.collectPill}>
@@ -439,11 +497,16 @@ const s = StyleSheet.create({
   heroCard: {
     borderRadius: 20,
     overflow: 'hidden',
-    height: 190,
+    height: 195,
     marginBottom: 16,
     backgroundColor: colors.espresso,
+    position: 'relative',
   },
-  heroImage: { width: '100%', height: '100%', opacity: 0.65 },
+  heroImage: { width: '100%', height: '100%', opacity: 0.72 },
+  heroGradient: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(28, 18, 14, 0.45)',
+  },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
     padding: 16,
@@ -461,14 +524,16 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   featuredDealText: { fontSize: 9, fontWeight: '900', color: colors.espresso, letterSpacing: 0.5 },
-  heroTitle: { fontSize: 22, fontWeight: '900', color: colors.white },
-  heroSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2, marginBottom: 10 },
+  heroBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  heroLogo: { borderWidth: 2, borderColor: colors.white },
+  heroTitle: { fontSize: 21, fontWeight: '900', color: colors.white },
+  heroSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 1, marginBottom: 6 },
   heroMetaRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -481,17 +546,20 @@ const s = StyleSheet.create({
     backgroundColor: '#FFF9F3',
     borderWidth: 1,
     borderColor: '#FFE3D0',
-    padding: 14,
+    padding: 12,
     borderRadius: 16,
     marginBottom: 16,
   },
-  usualIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
+  usualThumbWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  usualThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
   },
   usualHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   usualTag: { fontSize: 9, fontWeight: '900', color: colors.caramel, letterSpacing: 0.6 },
@@ -551,7 +619,17 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  restaurantThumb: { width: 100, height: 100 },
+  restaurantThumbWrap: {
+    width: 104,
+    height: 104,
+    position: 'relative',
+  },
+  restaurantThumb: { width: 104, height: 104 },
+  restaurantLogoBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+  },
   restaurantBody: { flex: 1, padding: 12, justifyContent: 'space-between' },
   restNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   restaurantName: { fontSize: 15, fontWeight: '800', color: colors.espresso },

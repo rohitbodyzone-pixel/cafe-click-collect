@@ -9,6 +9,7 @@ import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
 import { money } from '@/src/data/products';
 import { colors } from '@/src/theme';
 import { createOrUpdateWalletPass, downloadApplePass, openGoogleWallet } from '@/src/services/wallet/walletManager';
+import { RestaurantLogoImage } from '@/src/components/RestaurantImage';
 
 export default function RewardsScreen() {
   const { currentRestaurant } = useRestaurant();
@@ -69,11 +70,21 @@ export default function RewardsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         {/* Loyalty Hero Balance */}
         <View style={s.hero}>
-          <Text style={s.eyebrow}>YOUR LOYALTY BALANCE</Text>
-          <Text style={s.points}>{balance.points} points</Text>
-          <Text style={s.help}>
-            {settings.pointsPerDollar} point{settings.pointsPerDollar === 1 ? '' : 's'} for every $1 spent at {currentRestaurant.name}
-          </Text>
+          <View style={s.heroTop}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.eyebrow}>YOUR LOYALTY BALANCE</Text>
+              <Text style={s.points}>{balance.points} points</Text>
+              <Text style={s.help}>
+                {settings.pointsPerDollar} point{settings.pointsPerDollar === 1 ? '' : 's'} for every $1 spent at {currentRestaurant.name}
+              </Text>
+            </View>
+            <RestaurantLogoImage
+              uri={currentRestaurant.logoUrl}
+              name={currentRestaurant.name}
+              size={48}
+              style={{ borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' }}
+            />
+          </View>
         </View>
 
         {/* Digital Stamp Card */}
@@ -168,6 +179,7 @@ export default function RewardsScreen() {
 const s = StyleSheet.create({
   content: { padding: 16, paddingBottom: 60 },
   hero: { backgroundColor: '#335943', borderRadius: 23, padding: 20, marginBottom: 14 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   eyebrow: { color: '#BDD2C1', fontWeight: '800', letterSpacing: 1.2, fontSize: 10 },
   points: { color: colors.white, fontSize: 34, fontWeight: '900', marginTop: 6 },
   help: { color: '#D7E5DA', marginTop: 4, fontSize: 12 },

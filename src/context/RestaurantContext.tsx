@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/src/lib/supabase';
 
@@ -178,6 +179,16 @@ type Store = {
   selectRestaurantById: (id: string) => Promise<Restaurant | undefined>;
   setCurrentRestaurant: (restaurant: Restaurant) => void;
   updateRestaurantProfile: (id: string, updates: Partial<Restaurant>) => Promise<void>;
+  uploadRestaurantLogo: (
+    id: string,
+    asset: { uri: string; mimeType?: string; file?: Blob },
+  ) => Promise<void>;
+  uploadRestaurantCover: (
+    id: string,
+    asset: { uri: string; mimeType?: string; file?: Blob },
+  ) => Promise<void>;
+  removeRestaurantLogo: (id: string) => Promise<void>;
+  removeRestaurantCover: (id: string) => Promise<void>;
   createRestaurant: (input: CreateRestaurantInput) => Promise<Restaurant>;
   toggleRestaurantActive: (id: string, isActive: boolean) => Promise<void>;
   refresh: () => Promise<void>;
@@ -306,6 +317,12 @@ export function RestaurantProvider({ children }: PropsWithChildren) {
     if (updates.cardEnabled !== undefined) row.card_enabled = updates.cardEnabled;
     if (updates.applePayEnabled !== undefined) row.apple_pay_enabled = updates.applePayEnabled;
     if (updates.googlePayEnabled !== undefined) row.google_pay_enabled = updates.googlePayEnabled;
+    if (updates.logoUrl !== undefined) row.logo_url = updates.logoUrl;
+    if (updates.coverImageUrl !== undefined) row.cover_image_url = updates.coverImageUrl;
+    if (updates.hero_image_url !== undefined) row.hero_image_url = updates.hero_image_url;
+    if (updates.is_orders_paused !== undefined) row.is_orders_paused = updates.is_orders_paused;
+    if (updates.rush_wait_extra_minutes !== undefined) row.rush_wait_extra_minutes = updates.rush_wait_extra_minutes;
+    if (updates.rush_customer_message !== undefined) row.rush_customer_message = updates.rush_customer_message;
     if (updates.isActive !== undefined) row.is_active = updates.isActive;
 
     const { error: updateError } = await supabase
@@ -314,6 +331,86 @@ export function RestaurantProvider({ children }: PropsWithChildren) {
       .eq('id', id);
     if (updateError) throw new Error(updateError.message);
 
+    await fetchRestaurants();
+  };
+
+  const uploadRestaurantLogo = async (
+    id: string,
+    asset: { uri: string; mimeType?: string; file?: Blob },
+  ) => {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const contentType = asset.mimeType || 'image/jpeg';
+    const body =
+      Platform.OS === 'web' && asset.file
+        ? asset.file
+        : await (await fetch(asset.uri)).arrayBuffer();
+    const path = `${id}/branding/logo`;
+    const upload = await supabase.storage
+      .from('product-images')
+      .upload(path, body, {
+        contentType,
+        upsert: true,
+        cacheControl: '0',
+      });
+    if (upload.error) throw new Error(upload.error.message);
+    const publicUrl = `${supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
+    const update = await supabase
+      .from('restaurants')
+      .update({ logo_url: publicUrl })
+      .eq('id', id);
+    if (update.error) throw new Error(update.error.message);
+    await fetchRestaurants();
+  };
+
+  const uploadRestaurantCover = async (
+    id: string,
+    asset: { uri: string; mimeType?: string; file?: Blob },
+  ) => {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const contentType = asset.mimeType || 'image/jpeg';
+    const body =
+      Platform.OS === 'web' && asset.file
+        ? asset.file
+        : await (await fetch(asset.uri)).arrayBuffer();
+    const path = `${id}/branding/cover`;
+    const upload = await supabase.storage
+      .from('product-images')
+      .upload(path, body, {
+        contentType,
+        upsert: true,
+        cacheControl: '0',
+      });
+    if (upload.error) throw new Error(upload.error.message);
+    const publicUrl = `${supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
+    const update = await supabase
+      .from('restaurants')
+      .update({ cover_image_url: publicUrl, hero_image_url: publicUrl })
+      .eq('id', id);
+    if (update.error) throw new Error(update.error.message);
+    await fetchRestaurants();
+  };
+
+  const removeRestaurantLogo = async (id: string) => {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const path = `${id}/branding/logo`;
+    await supabase.storage.from('product-images').remove([path]);
+    const update = await supabase
+      .from('restaurants')
+      .update({ logo_url: null })
+      .eq('id', id);
+    if (update.error) throw new Error(update.error.message);
+    await fetchRestaurants();
+  };
+
+  const removeRestaurantCover = async (id: string) => {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const path = `${id}/branding/cover`;
+    await supabase.storage.from('product-images').remove([path]);
+    const update = await supabase
+      .from('restaurants')
+      .update({ cover_image_url: null, hero_image_url: null })
+      .eq('id', id);
+    if (update.error) throw new Error(update.error.message);
     await fetchRestaurants();
   };
 
@@ -372,6 +469,10 @@ export function RestaurantProvider({ children }: PropsWithChildren) {
       selectRestaurantById,
       setCurrentRestaurant,
       updateRestaurantProfile,
+      uploadRestaurantLogo,
+      uploadRestaurantCover,
+      removeRestaurantLogo,
+      removeRestaurantCover,
       createRestaurant,
       toggleRestaurantActive,
       refresh: fetchRestaurants,

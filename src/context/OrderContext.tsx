@@ -49,6 +49,8 @@ export type Order = {
     slug: string;
     phone: string;
     address: string;
+    logoUrl?: string;
+    coverImageUrl?: string;
   };
   customerKey?: string;
   items: CartItem[];

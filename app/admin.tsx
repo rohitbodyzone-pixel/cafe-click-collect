@@ -12,6 +12,8 @@ import { useRestaurant } from "@/src/context/RestaurantContext";
 import { useServiceRequests } from "@/src/context/ServiceRequestContext";
 import { useFeaturePermission } from "@/src/context/FeaturePermissionContext";
 import { supabase } from "@/src/lib/supabase";
+import * as ImagePicker from "expo-image-picker";
+import { RestaurantCoverImage, RestaurantLogoImage } from "@/src/components/RestaurantImage";
 
 const tabs: OrderStatus[] = ["Incoming", "Accepted", "Preparing", "Ready", "Collected"];
 const next: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -68,7 +70,15 @@ const AdminLink = ({
 export default function Admin() {
   const [mode, setMode] = useState<'simple' | 'advanced'>('simple');
   const [tab, setTab] = useState<OrderStatus>("Incoming");
-  const { currentRestaurant, setCurrentRestaurant, refresh } = useRestaurant();
+  const {
+    currentRestaurant,
+    setCurrentRestaurant,
+    refresh,
+    uploadRestaurantLogo,
+    uploadRestaurantCover,
+    removeRestaurantLogo,
+    removeRestaurantCover,
+  } = useRestaurant();
   const { orders, updateOrderStatus, markOrderPaid, backendError } = useOrders();
   const { requests: serviceRequests, updateStatus: updateServiceStatus } = useServiceRequests();
   const { isFeatureEnabled } = useFeaturePermission();
@@ -80,6 +90,98 @@ export default function Admin() {
   const [rushMessage, setRushMessage] = useState(currentRestaurant.rush_customer_message || '');
   const [rushBusy, setRushBusy] = useState(false);
   const [rushSuccess, setRushSuccess] = useState('');
+
+  // Branding state
+  const [brandingBusy, setBrandingBusy] = useState(false);
+  const [brandingSuccess, setBrandingSuccess] = useState('');
+
+  const handleChooseLogo = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      alert('Photo library permission is required to choose a logo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setBrandingBusy(true);
+      try {
+        const asset = result.assets[0];
+        await uploadRestaurantLogo(currentRestaurant.id, {
+          uri: asset.uri,
+          mimeType: asset.mimeType,
+          file: asset.file,
+        });
+        setBrandingSuccess('✓ Restaurant logo uploaded successfully!');
+        setTimeout(() => setBrandingSuccess(''), 4000);
+      } catch (e: any) {
+        alert(e.message || 'Could not upload logo');
+      } finally {
+        setBrandingBusy(false);
+      }
+    }
+  };
+
+  const handleChooseCover = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      alert('Photo library permission is required to choose a cover photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setBrandingBusy(true);
+      try {
+        const asset = result.assets[0];
+        await uploadRestaurantCover(currentRestaurant.id, {
+          uri: asset.uri,
+          mimeType: asset.mimeType,
+          file: asset.file,
+        });
+        setBrandingSuccess('✓ Restaurant cover photo uploaded successfully!');
+        setTimeout(() => setBrandingSuccess(''), 4000);
+      } catch (e: any) {
+        alert(e.message || 'Could not upload cover');
+      } finally {
+        setBrandingBusy(false);
+      }
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    setBrandingBusy(true);
+    try {
+      await removeRestaurantLogo(currentRestaurant.id);
+      setBrandingSuccess('✓ Restaurant logo removed.');
+      setTimeout(() => setBrandingSuccess(''), 4000);
+    } catch (e: any) {
+      alert(e.message || 'Could not remove logo');
+    } finally {
+      setBrandingBusy(false);
+    }
+  };
+
+  const handleRemoveCover = async () => {
+    setBrandingBusy(true);
+    try {
+      await removeRestaurantCover(currentRestaurant.id);
+      setBrandingSuccess('✓ Restaurant cover photo removed.');
+      setTimeout(() => setBrandingSuccess(''), 4000);
+    } catch (e: any) {
+      alert(e.message || 'Could not remove cover');
+    } finally {
+      setBrandingBusy(false);
+    }
+  };
 
   const visible = orders.filter((o) => o.status === tab);
   const pendingRequests = serviceRequests.filter(
@@ -129,6 +231,12 @@ export default function Admin() {
 
       {/* Role & Cafe Header */}
       <View style={styles.restaurantBar}>
+        <RestaurantLogoImage
+          uri={currentRestaurant.logoUrl}
+          name={currentRestaurant.name}
+          size={40}
+          style={{ marginRight: 10 }}
+        />
         <View style={{ flex: 1 }}>
           <Text style={styles.staffRoleText}>
             {auth.staff?.role?.toUpperCase()} · {auth.staff?.displayName || auth.staff?.email}
@@ -313,6 +421,91 @@ export default function Admin() {
           route="/admin-tables"
         />
 
+        {/* Storefront Images & Branding Management */}
+        <Card style={styles.brandingCard}>
+          <View style={styles.brandingHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.brandingTitle}>STOREFRONT IMAGES & BRANDING</Text>
+              <Text style={styles.brandingSub}>
+                Upload high-resolution cover photo and logo for marketplace discovery and menus.
+              </Text>
+            </View>
+            <Ionicons name="images-outline" size={20} color={colors.caramel} />
+          </View>
+
+          {/* Cover Photo Section */}
+          <Text style={styles.brandingSectionTitle}>1. RESTAURANT COVER PHOTO (16:9)</Text>
+          <View style={styles.coverPreviewWrap}>
+            <RestaurantCoverImage
+              uri={currentRestaurant.coverImageUrl || currentRestaurant.hero_image_url}
+              name={currentRestaurant.name}
+              style={styles.brandingCoverImg}
+              placeholderStyle={styles.brandingCoverImg}
+            />
+          </View>
+          <View style={styles.brandingBtnRow}>
+            <Pressable
+              style={styles.brandingBtn}
+              onPress={() => void handleChooseCover()}
+              disabled={brandingBusy}
+            >
+              <Ionicons name="cloud-upload-outline" size={14} color={colors.white} />
+              <Text style={styles.brandingBtnText}>
+                {currentRestaurant.coverImageUrl ? 'Replace Cover' : 'Upload Cover'}
+              </Text>
+            </Pressable>
+            {!!currentRestaurant.coverImageUrl && (
+              <Pressable
+                style={[styles.brandingBtn, styles.removeBrandingBtn]}
+                onPress={() => void handleRemoveCover()}
+                disabled={brandingBusy}
+              >
+                <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                <Text style={[styles.brandingBtnText, { color: colors.danger }]}>Remove</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Logo Section */}
+          <Text style={[styles.brandingSectionTitle, { marginTop: 14 }]}>2. RESTAURANT LOGO / AVATAR (1:1)</Text>
+          <View style={styles.logoPreviewRow}>
+            <RestaurantLogoImage
+              uri={currentRestaurant.logoUrl}
+              name={currentRestaurant.name}
+              size={56}
+              style={{ borderWidth: 2, borderColor: colors.line }}
+            />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={styles.brandingBtnRow}>
+                <Pressable
+                  style={styles.brandingBtn}
+                  onPress={() => void handleChooseLogo()}
+                  disabled={brandingBusy}
+                >
+                  <Ionicons name="cloud-upload-outline" size={14} color={colors.white} />
+                  <Text style={styles.brandingBtnText}>
+                    {currentRestaurant.logoUrl ? 'Replace Logo' : 'Upload Logo'}
+                  </Text>
+                </Pressable>
+                {!!currentRestaurant.logoUrl && (
+                  <Pressable
+                    style={[styles.brandingBtn, styles.removeBrandingBtn]}
+                    onPress={() => void handleRemoveLogo()}
+                    disabled={brandingBusy}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                    <Text style={[styles.brandingBtnText, { color: colors.danger }]}>Remove</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {!!brandingSuccess && (
+            <Text style={styles.brandingSuccessText}>{brandingSuccess}</Text>
+          )}
+        </Card>
+
         {/* ADVANCED MODE ONLY LINKS */}
         {mode === 'advanced' && (
           <View style={{ marginTop: 10 }}>
@@ -485,4 +678,83 @@ const styles = StyleSheet.create({
   },
   menuTitle: { fontSize: 14, fontWeight: "800", color: colors.ink },
   menuText: { fontSize: 11, color: colors.muted, marginTop: 1 },
+  brandingCard: {
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  brandingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  brandingTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.espresso,
+    letterSpacing: 0.8,
+  },
+  brandingSub: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  brandingSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.caramel,
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  coverPreviewWrap: {
+    height: 110,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+    backgroundColor: colors.espresso,
+  },
+  brandingCoverImg: {
+    width: '100%',
+    height: 110,
+  },
+  brandingBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  brandingBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.espresso,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  brandingBtnText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  removeBrandingBtn: {
+    flex: 0,
+    paddingHorizontal: 14,
+    backgroundColor: '#FBE8E5',
+    borderWidth: 1,
+    borderColor: '#E8C4BE',
+  },
+  logoPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  brandingSuccessText: {
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 10,
+    textAlign: 'center',
+  },
 });

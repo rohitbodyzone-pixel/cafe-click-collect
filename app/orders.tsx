@@ -5,6 +5,8 @@ import { Card, Header, Screen } from '@/src/components/UI';
 import { useOrders } from '@/src/context/OrderContext';
 import { useLoyalty } from '@/src/context/LoyaltyContext';
 import { money, paymentMethodLabel } from '@/src/data/products';
+import { ProductImage } from '@/src/components/ProductImage';
+import { RestaurantLogoImage } from '@/src/components/RestaurantImage';
 import { colors } from '@/src/theme';
 
 export default function OrdersScreen() {
@@ -26,6 +28,12 @@ export default function OrdersScreen() {
             >
               <Card style={s.card}>
                 <View style={s.top}>
+                  <RestaurantLogoImage
+                    uri={order.restaurant?.logoUrl}
+                    name={order.restaurant?.name || 'Cafe'}
+                    size={36}
+                    style={{ marginRight: 10 }}
+                  />
                   <View style={{ flex: 1 }}>
                     {!!order.restaurant?.name && (
                       <Text style={s.restaurantName}>
@@ -53,6 +61,32 @@ export default function OrdersScreen() {
                     </Text>
                   </View>
                 </View>
+
+                {/* Thumbnail Preview Row */}
+                {order.items.length > 0 && (
+                  <View style={s.itemThumbRow}>
+                    {order.items.slice(0, 3).map((it, idx) => (
+                      <View key={`${it.cartKey}-${idx}`} style={s.orderItemThumbPill}>
+                        <ProductImage
+                          uri={it.product?.imageUrl}
+                          category={it.product?.category}
+                          name={it.product?.name}
+                          style={s.orderItemThumb}
+                          placeholderStyle={s.orderItemThumb}
+                          iconSize={14}
+                        />
+                        <Text style={s.orderItemThumbText} numberOfLines={1}>
+                          {it.quantity}× {it.product?.name || 'Item'}
+                        </Text>
+                      </View>
+                    ))}
+                    {order.items.length > 3 && (
+                      <View style={s.moreItemsPill}>
+                        <Text style={s.moreItemsText}>+{order.items.length - 3}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 <Text style={s.mode}>
                   {order.orderType === 'table'
@@ -124,7 +158,43 @@ const s = StyleSheet.create({
   },
   collected: { backgroundColor: colors.line },
   statusText: { color: colors.green, fontWeight: '800', fontSize: 10 },
-  mode: { color: colors.ink, fontWeight: '800', marginTop: 12, fontSize: 14 },
+  itemThumbRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+  },
+  orderItemThumbPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cream,
+    borderRadius: 8,
+    paddingRight: 8,
+    overflow: 'hidden',
+  },
+  orderItemThumb: {
+    width: 26,
+    height: 26,
+  },
+  orderItemThumbText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.ink,
+    marginLeft: 6,
+  },
+  moreItemsPill: {
+    backgroundColor: colors.cream,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  moreItemsText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.caramel,
+  },
+  mode: { color: colors.ink, fontWeight: '800', marginTop: 10, fontSize: 14 },
   items: { color: colors.muted, marginTop: 4, fontSize: 13 },
   payment: { color: colors.green, fontWeight: '800', fontSize: 11, marginTop: 7 },
   track: {

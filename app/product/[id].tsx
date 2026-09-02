@@ -103,7 +103,14 @@ export default function ProductDetails() {
   return (
     <Screen>
       <Header title="Product details" />
-      <ProductImage uri={product.imageUrl} style={styles.visual} placeholderStyle={styles.visual} />
+      <ProductImage
+        uri={product.imageUrl}
+        category={product.category}
+        name={product.name}
+        style={styles.visual}
+        placeholderStyle={styles.visual}
+        iconSize={48}
+      />
       <Text style={styles.category}>{product.category}</Text>
       <View style={styles.titleRow}>
         <Text style={styles.title}>{product.name}</Text>
@@ -189,12 +196,13 @@ export default function ProductDetails() {
 }
 const styles = StyleSheet.create({
   visual: {
-    height: 190,
-    borderRadius: 28,
+    height: 180,
+    borderRadius: 22,
+    overflow: 'hidden',
     backgroundColor: "#EFE2D3",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 16,
   },
   category: {
     color: colors.caramel,
