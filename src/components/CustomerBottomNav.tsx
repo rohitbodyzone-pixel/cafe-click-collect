@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrders } from '@/src/context/OrderContext';
-import { colors } from '@/src/theme';
+import { colors, radii, shadows } from '@/src/theme';
+import { triggerHaptic } from '@/src/components/UI';
 
 export type CustomerNavTab = 'home' | 'explore' | 'orders' | 'cart' | 'profile';
 
@@ -15,99 +16,121 @@ export function CustomerBottomNav({ activeTab }: CustomerBottomNavProps) {
   const { cart } = useOrders();
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const handleNav = (tab: CustomerNavTab, route: string) => {
+    if (activeTab !== tab) {
+      triggerHaptic('light');
+      router.push(route as any);
+    }
+  };
+
   return (
     <View style={styles.bottomNavBar}>
-      {/* 1. Home */}
-      <Pressable
-        style={styles.navItem}
-        onPress={() => router.push('/')}
-        accessibilityRole="tab"
-        accessibilityLabel="Home"
-      >
-        <Ionicons
-          name={activeTab === 'home' ? 'home' : 'home-outline'}
-          size={22}
-          color={activeTab === 'home' ? colors.espresso : colors.muted}
-        />
-        <Text style={[styles.navLabel, activeTab === 'home' && styles.navLabelActive]}>
-          Home
-        </Text>
-      </Pressable>
+      <View style={styles.navInner}>
+        {/* 1. Home */}
+        <Pressable
+          style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
+          onPress={() => handleNav('home', '/')}
+          accessibilityRole="tab"
+          accessibilityLabel="Home"
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        >
+          <View style={[styles.iconWrap, activeTab === 'home' && styles.iconWrapActive]}>
+            <Ionicons
+              name={activeTab === 'home' ? 'home' : 'home-outline'}
+              size={21}
+              color={activeTab === 'home' ? colors.espresso : colors.muted}
+            />
+          </View>
+          <Text style={[styles.navLabel, activeTab === 'home' && styles.navLabelActive]}>
+            Home
+          </Text>
+        </Pressable>
 
-      {/* 2. Explore / Restaurants */}
-      <Pressable
-        style={styles.navItem}
-        onPress={() => router.push('/restaurants')}
-        accessibilityRole="tab"
-        accessibilityLabel="Explore Restaurants"
-      >
-        <Ionicons
-          name={activeTab === 'explore' ? 'compass' : 'compass-outline'}
-          size={22}
-          color={activeTab === 'explore' ? colors.espresso : colors.muted}
-        />
-        <Text style={[styles.navLabel, activeTab === 'explore' && styles.navLabelActive]}>
-          Explore
-        </Text>
-      </Pressable>
+        {/* 2. Explore / Restaurants */}
+        <Pressable
+          style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
+          onPress={() => handleNav('explore', '/restaurants')}
+          accessibilityRole="tab"
+          accessibilityLabel="Explore Restaurants"
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        >
+          <View style={[styles.iconWrap, activeTab === 'explore' && styles.iconWrapActive]}>
+            <Ionicons
+              name={activeTab === 'explore' ? 'compass' : 'compass-outline'}
+              size={21}
+              color={activeTab === 'explore' ? colors.espresso : colors.muted}
+            />
+          </View>
+          <Text style={[styles.navLabel, activeTab === 'explore' && styles.navLabelActive]}>
+            Explore
+          </Text>
+        </Pressable>
 
-      {/* 3. Orders */}
-      <Pressable
-        style={styles.navItem}
-        onPress={() => router.push('/orders')}
-        accessibilityRole="tab"
-        accessibilityLabel="My Orders"
-      >
-        <Ionicons
-          name={activeTab === 'orders' ? 'receipt' : 'receipt-outline'}
-          size={22}
-          color={activeTab === 'orders' ? colors.espresso : colors.muted}
-        />
-        <Text style={[styles.navLabel, activeTab === 'orders' && styles.navLabelActive]}>
-          Orders
-        </Text>
-      </Pressable>
+        {/* 3. Orders */}
+        <Pressable
+          style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
+          onPress={() => handleNav('orders', '/orders')}
+          accessibilityRole="tab"
+          accessibilityLabel="My Orders"
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        >
+          <View style={[styles.iconWrap, activeTab === 'orders' && styles.iconWrapActive]}>
+            <Ionicons
+              name={activeTab === 'orders' ? 'receipt' : 'receipt-outline'}
+              size={21}
+              color={activeTab === 'orders' ? colors.espresso : colors.muted}
+            />
+          </View>
+          <Text style={[styles.navLabel, activeTab === 'orders' && styles.navLabelActive]}>
+            Orders
+          </Text>
+        </Pressable>
 
-      {/* 4. Cart */}
-      <Pressable
-        style={styles.navItem}
-        onPress={() => router.push('/cart')}
-        accessibilityRole="tab"
-        accessibilityLabel={`Cart with ${cartCount} items`}
-      >
-        <View style={styles.iconWrap}>
-          <Ionicons
-            name={activeTab === 'cart' ? 'bag-handle' : 'bag-handle-outline'}
-            size={22}
-            color={activeTab === 'cart' ? colors.espresso : colors.muted}
-          />
-          {cartCount > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartCount}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={[styles.navLabel, activeTab === 'cart' && styles.navLabelActive]}>
-          Cart
-        </Text>
-      </Pressable>
+        {/* 4. Cart */}
+        <Pressable
+          style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
+          onPress={() => handleNav('cart', '/cart')}
+          accessibilityRole="tab"
+          accessibilityLabel={`Cart with ${cartCount} items`}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        >
+          <View style={[styles.iconWrap, activeTab === 'cart' && styles.iconWrapActive]}>
+            <Ionicons
+              name={activeTab === 'cart' ? 'bag-handle' : 'bag-handle-outline'}
+              size={21}
+              color={activeTab === 'cart' ? colors.espresso : colors.muted}
+            />
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.navLabel, activeTab === 'cart' && styles.navLabelActive]}>
+            Cart
+          </Text>
+        </Pressable>
 
-      {/* 5. My Profile */}
-      <Pressable
-        style={styles.navItem}
-        onPress={() => router.push('/profile')}
-        accessibilityRole="tab"
-        accessibilityLabel="My Profile"
-      >
-        <Ionicons
-          name={activeTab === 'profile' ? 'person' : 'person-outline'}
-          size={22}
-          color={activeTab === 'profile' ? colors.espresso : colors.muted}
-        />
-        <Text style={[styles.navLabel, activeTab === 'profile' && styles.navLabelActive]}>
-          Profile
-        </Text>
-      </Pressable>
+        {/* 5. My Profile */}
+        <Pressable
+          style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
+          onPress={() => handleNav('profile', '/profile')}
+          accessibilityRole="tab"
+          accessibilityLabel="My Profile"
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        >
+          <View style={[styles.iconWrap, activeTab === 'profile' && styles.iconWrapActive]}>
+            <Ionicons
+              name={activeTab === 'profile' ? 'person' : 'person-outline'}
+              size={21}
+              color={activeTab === 'profile' ? colors.espresso : colors.muted}
+            />
+          </View>
+          <Text style={[styles.navLabel, activeTab === 'profile' && styles.navLabelActive]}>
+            Profile
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -122,31 +145,48 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 4,
+    ...shadows.lg,
+    zIndex: 999,
+  },
+  navInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingBottom: 4,
-    elevation: 8,
-    shadowColor: colors.espresso,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    zIndex: 999,
+    width: '100%',
+    maxWidth: 600,
+    paddingHorizontal: 8,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    paddingVertical: 4,
+    minHeight: 48,
+  },
+  navItemPressed: {
+    opacity: 0.75,
+    transform: [{ scale: 0.95 }],
   },
   iconWrap: {
     position: 'relative',
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapActive: {
+    backgroundColor: colors.cream,
   },
   navLabel: {
     fontSize: 10,
     fontWeight: '600',
     color: colors.muted,
     marginTop: 2,
+    letterSpacing: 0.2,
   },
   navLabelActive: {
     color: colors.espresso,
@@ -154,15 +194,17 @@ const styles = StyleSheet.create({
   },
   cartBadge: {
     position: 'absolute',
-    top: -3,
-    right: -7,
+    top: -2,
+    right: 2,
     backgroundColor: colors.caramel,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    minWidth: 17,
+    height: 17,
+    borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: colors.white,
   },
   cartBadgeText: {
     color: colors.white,
@@ -170,3 +212,4 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 });
+

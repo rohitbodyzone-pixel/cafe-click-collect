@@ -9,7 +9,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { Screen, Header, Card, Button } from '@/src/components/UI';
+import { Screen, Header, Card, Button, triggerHaptic } from '@/src/components/UI';
 import { useRestaurant, Restaurant } from '@/src/context/RestaurantContext';
 import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
 import { FeatureCategory, FeatureDefinition, FeatureState, PLATFORM_FEATURES } from '@/src/services/features/types';

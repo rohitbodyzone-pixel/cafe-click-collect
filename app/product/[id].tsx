@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, TextInput, View, Pressable } from "react-native";
-import { Button, Header, Screen } from "@/src/components/UI";
+import { Button, Header, Screen, triggerHaptic } from "@/src/components/UI";
 import { money } from "@/src/data/products";
 import { useOrders } from "@/src/context/OrderContext";
 import { useProducts } from "@/src/context/ProductContext";
@@ -91,7 +91,8 @@ export default function ProductDetails() {
         <Text>Product not found.</Text>
       </Screen>
     );
-  const toggle = (groupId: string, optionId: string, multiple: boolean) =>
+  const toggle = (groupId: string, optionId: string, multiple: boolean) => {
+    triggerHaptic('light');
     setSelected((current) => ({
       ...current,
       [groupId]: multiple
@@ -100,6 +101,7 @@ export default function ProductDetails() {
           : [...(current[groupId] ?? []), optionId]
         : [optionId],
     }));
+  };
   return (
     <Screen>
       <Header title="Product details" />
@@ -166,14 +168,22 @@ export default function ProductDetails() {
       <View style={styles.stepper}>
         <Pressable
           style={styles.step}
-          onPress={() => setQuantity(Math.max(1, quantity - 1))}
+          onPress={() => {
+            triggerHaptic('light');
+            setQuantity(Math.max(1, quantity - 1));
+          }}
+          accessibilityLabel="Decrease quantity"
         >
           <Text style={styles.stepText}>−</Text>
         </Pressable>
         <Text style={styles.quantity}>{quantity}</Text>
         <Pressable
           style={styles.step}
-          onPress={() => setQuantity(quantity + 1)}
+          onPress={() => {
+            triggerHaptic('light');
+            setQuantity(quantity + 1);
+          }}
+          accessibilityLabel="Increase quantity"
         >
           <Text style={styles.stepText}>+</Text>
         </Pressable>
@@ -197,6 +207,7 @@ export default function ProductDetails() {
         }
         icon="bag-add-outline"
         onPress={() => {
+          triggerHaptic('success');
           addToCart(product, quantity, notes.trim(), choices);
           router.push("/cart");
         }}

@@ -9,7 +9,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
-import { Screen, Header, Card, Button } from '@/src/components/UI';
+import { Screen, Header, Card, Button, triggerHaptic } from '@/src/components/UI';
 import { RoleGate } from '@/src/components/RoleGate';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useAdminAuth } from '@/src/context/AdminAuthContext';
@@ -192,7 +192,8 @@ function CounterPortalContent() {
   };
 
   // Toggle option selection in customization modal
-  const handleToggleOption = (groupId: string, optionId: string, isMultiple: boolean) => {
+  const toggleModalOption = (groupId: string, optionId: string, isMultiple: boolean) => {
+    triggerHaptic('light');
     setSelectedOptions((current) => ({
       ...current,
       [groupId]: isMultiple
@@ -248,6 +249,7 @@ function CounterPortalContent() {
     customisations: SelectedCustomisation[],
     notes: string,
   ) => {
+    triggerHaptic('light');
     const signature = customisations
       .map((item) => item.optionId)
       .sort()
@@ -284,6 +286,7 @@ function CounterPortalContent() {
   };
 
   const handleUpdateCartQty = (cartKey: string, delta: number) => {
+    triggerHaptic('light');
     setPosCart((prev) =>
       prev
         .map((item) => (item.cartKey === cartKey ? { ...item, quantity: item.quantity + delta } : item))
@@ -300,6 +303,7 @@ function CounterPortalContent() {
       return;
     }
 
+    triggerHaptic('success');
     setOrderingBusy(true);
     setOrderSuccess('');
     try {
@@ -636,7 +640,7 @@ function CounterPortalContent() {
                                   !opt.available && s.modOptionPillDisabled,
                                 ]}
                                 onPress={() =>
-                                  handleToggleOption(group.id, opt.id, isExtras)
+                                  toggleModalOption(group.id, opt.id, isExtras)
                                 }
                               >
                                 <Text

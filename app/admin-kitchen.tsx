@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Header, Screen } from '@/src/components/UI';
+import { Card, Header, Screen, triggerHaptic } from '@/src/components/UI';
 import { Order, OrderStatus, useOrders } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useAdminAuth } from '@/src/context/AdminAuthContext';
@@ -372,7 +372,10 @@ export default function AdminKitchenScreen() {
               {action && (
                 <Pressable
                   style={[s.bumpButton, order.status === 'Ready' && s.bumpButtonComplete]}
-                  onPress={() => void updateOrderStatus(order.id, action.nextStatus)}
+                  onPress={() => {
+                    triggerHaptic('medium');
+                    void updateOrderStatus(order.id, action.nextStatus);
+                  }}
                 >
                   <Ionicons name={action.icon} size={16} color={colors.white} />
                   <Text style={s.bumpButtonText}>{action.label}</Text>

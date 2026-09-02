@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { Button, Card, Header, Screen } from "@/src/components/UI";
+import { Button, Card, Header, Screen, triggerHaptic } from "@/src/components/UI";
 import { PaymentMethod, useOrders } from "@/src/context/OrderContext";
 import { usePaymentSettings } from "@/src/context/PaymentSettingsContext";
 import { StripePaymentForm } from "@/src/components/StripePaymentForm";
@@ -151,7 +151,10 @@ export default function Checkout() {
         payments.googlePayEnabled) && (
         <Pressable
           disabled={!!session}
-          onPress={() => setMethod("card")}
+          onPress={() => {
+            triggerHaptic('light');
+            setMethod("card");
+          }}
           style={[
             styles.method,
             method !== "pay_at_counter" && styles.methodActive,
@@ -166,7 +169,10 @@ export default function Checkout() {
       {payments.payAtCounterEnabled && (
         <Pressable
           disabled={!!session}
-          onPress={() => setMethod("pay_at_counter")}
+          onPress={() => {
+            triggerHaptic('light');
+            setMethod("pay_at_counter");
+          }}
           style={[
             styles.method,
             method === "pay_at_counter" && styles.methodActive,

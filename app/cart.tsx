@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Header, Screen } from '@/src/components/UI';
+import { Button, Card, Header, Screen, triggerHaptic } from '@/src/components/UI';
 import { money } from '@/src/data/products';
 import { useOrders } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
@@ -38,11 +38,13 @@ export default function Cart() {
 
   const handleAddUpsell = () => {
     if (!suggestedUpsell) return;
+    triggerHaptic('success');
     addToCart(suggestedUpsell.product, 1, undefined, []);
   };
 
   const handleSaveUsual = async () => {
     if (cart.length === 0) return;
+    triggerHaptic('success');
     await saveUsual(cart, orderMode, undefined, `${cart[0].product.name} Usual`);
     setSavedUsual(true);
   };
@@ -75,7 +77,13 @@ export default function Cart() {
                 <Text style={s.bannerTable}>Seated at {table.name}</Text>
               )}
             </View>
-            <Pressable style={s.clearBtn} onPress={clearCart}>
+            <Pressable
+              style={s.clearBtn}
+              onPress={() => {
+                triggerHaptic('medium');
+                clearCart();
+              }}
+            >
               <Ionicons name="trash-outline" size={14} color={colors.danger} />
               <Text style={s.clearBtnText}>Clear</Text>
             </Pressable>
@@ -105,7 +113,10 @@ export default function Cart() {
               <View style={s.stepper}>
                 <Pressable
                   style={s.stepBtn}
-                  onPress={() => setQuantity(i.cartKey, i.quantity - 1)}
+                  onPress={() => {
+                    triggerHaptic('light');
+                    setQuantity(i.cartKey, i.quantity - 1);
+                  }}
                   accessibilityLabel="Decrease quantity"
                 >
                   <Text style={s.stepBtnText}>−</Text>
@@ -113,7 +124,10 @@ export default function Cart() {
                 <Text style={s.quantityText}>{i.quantity}</Text>
                 <Pressable
                   style={s.stepBtn}
-                  onPress={() => setQuantity(i.cartKey, i.quantity + 1)}
+                  onPress={() => {
+                    triggerHaptic('light');
+                    setQuantity(i.cartKey, i.quantity + 1);
+                  }}
                   accessibilityLabel="Increase quantity"
                 >
                   <Text style={s.stepBtnText}>+</Text>

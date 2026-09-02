@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View, ScrollView, Switch, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Button, Card, Header, Screen } from "@/src/components/UI";
+import { Button, Card, Header, Screen, triggerHaptic } from "@/src/components/UI";
 import { OrderStatus, useOrders } from "@/src/context/OrderContext";
 import { money, paymentMethodLabel } from "@/src/data/products";
 import { colors } from "@/src/theme";

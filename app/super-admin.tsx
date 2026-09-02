@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Header, Screen } from '@/src/components/UI';
+import { Button, Card, Header, Screen, triggerHaptic } from '@/src/components/UI';
 import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useAdminAuth } from '@/src/context/AdminAuthContext';
 import { useOrders } from '@/src/context/OrderContext';

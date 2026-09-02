@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Screen, Header, Card, Button } from '@/src/components/UI';
+import { Screen, Header, Card, Button, triggerHaptic } from '@/src/components/UI';
 import { RoleGate } from '@/src/components/RoleGate';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useAdminAuth } from '@/src/context/AdminAuthContext';
@@ -59,6 +59,7 @@ function ManagerContent() {
   };
 
   const handleUpdateRush = async (extra: number, pause: boolean) => {
+    triggerHaptic('medium');
     setBusyRush(true);
     try {
       if (supabase) {

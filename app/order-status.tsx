@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Header, Screen, Card } from '@/src/components/UI';
+import { Button, Header, Screen, Card, triggerHaptic } from '@/src/components/UI';
 import { useOrders, OrderStatus } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useCustomerExperience, QueuePositionInfo, ReviewShieldResult } from '@/src/context/CustomerExperienceContext';
@@ -63,6 +63,7 @@ export default function OrderStatusScreen() {
 
   const handleArrival = async () => {
     if (!order?.id) return;
+    triggerHaptic('medium');
     try {
       await notifyArrival(order.id, 'Customer is outside / at counter');
       setArrivedNotified(true);
@@ -72,6 +73,7 @@ export default function OrderStatusScreen() {
   };
 
   const handleRatingSelect = async (stars: number) => {
+    triggerHaptic(stars >= 4 ? 'success' : 'light');
     setSelectedRating(stars);
     if (stars >= 4 && order?.id) {
       // Auto-submit 4-5 star rating
@@ -84,6 +86,7 @@ export default function OrderStatusScreen() {
 
   const handleSubmitLowRating = async () => {
     if (!order?.id || selectedRating === 0) return;
+    triggerHaptic('medium');
     setSubmittingFeedback(true);
     const res = await submitReviewFeedback(order.id, selectedRating, feedbackText);
     setReviewResult(res);
@@ -91,6 +94,7 @@ export default function OrderStatusScreen() {
   };
 
   const handleTableService = async (type: ServiceRequestType) => {
+    triggerHaptic('medium');
     setBusyService(true);
     setServiceMessage('');
     try {

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Button, Header, Screen } from '@/src/components/UI';
+import { Button, Header, Screen, triggerHaptic } from '@/src/components/UI';
 import { useOrders } from '@/src/context/OrderContext';
 import { usePickupSettings } from '@/src/context/PickupSettingsContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
@@ -133,7 +133,10 @@ export default function PickupTime() {
                   pickupTime === slot.label &&
                   styles.selected,
               ]}
-              onPress={() => setPickupTime(slot.label, slot.key)}
+              onPress={() => {
+                triggerHaptic('light');
+                setPickupTime(slot.label, slot.key);
+              }}
             >
               <View>
                 <Text
