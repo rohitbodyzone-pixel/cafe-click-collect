@@ -20,7 +20,7 @@ import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
 import { ProductImage } from '@/src/components/ProductImage';
 import { RestaurantLogoImage } from '@/src/components/RestaurantImage';
 import { money } from '@/src/data/products';
-import { colors } from '@/src/theme';
+import { colors, radii, shadows } from '@/src/theme';
 
 export default function MyProfileScreen() {
   const { currentRestaurant } = useRestaurant();
@@ -565,17 +565,19 @@ const s = StyleSheet.create({
   metricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cream,
-    borderRadius: 14,
-    paddingVertical: 10,
+    backgroundColor: colors.creamSoft,
+    borderRadius: 16,
+    paddingVertical: 12,
     marginTop: 14,
+    borderWidth: 1,
+    borderColor: colors.lineLight,
   },
   metricBox: {
     flex: 1,
     alignItems: 'center',
   },
   metricVal: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
     color: colors.espresso,
   },
@@ -583,11 +585,11 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: colors.muted,
-    marginTop: 1,
+    marginTop: 2,
   },
   metricDivider: {
     width: 1,
-    height: 24,
+    height: 26,
     backgroundColor: colors.line,
   },
   modePreferenceRow: {
@@ -603,7 +605,8 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: colors.caramel,
-    letterSpacing: 0.8,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   modePrefValue: {
     fontSize: 13,
@@ -615,10 +618,11 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.md,
     backgroundColor: colors.cream,
+    ...shadows.sm,
   },
   switchModeText: {
     fontSize: 11,
@@ -628,26 +632,27 @@ const s = StyleSheet.create({
   quickActionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 14,
+    gap: 12,
+    marginBottom: 16,
   },
   quickActionCard: {
     flex: 1,
     minWidth: '47%',
     backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 18,
+    padding: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.line,
+    ...shadows.sm,
   },
   quickActionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   quickActionLabel: {
     fontSize: 13,
@@ -661,9 +666,12 @@ const s = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    ...shadows.sm,
   },
   sectionHeaderRow: {
     flexDirection: 'row',

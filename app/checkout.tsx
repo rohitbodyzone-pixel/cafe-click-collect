@@ -8,7 +8,7 @@ import { StripePaymentForm } from "@/src/components/StripePaymentForm";
 import { RewardsSummary } from "@/src/components/RewardsSummary";
 import { useLoyalty } from "@/src/context/LoyaltyContext";
 import { money } from "@/src/data/products";
-import { colors } from "@/src/theme";
+import { colors, radii, shadows } from "@/src/theme";
 
 type Session = {
   orderId: string;
@@ -237,41 +237,44 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
   input: {
-    height: 52,
+    height: 50,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.white,
     paddingHorizontal: 14,
     marginBottom: 10,
+    fontSize: 14,
+    color: colors.ink,
   },
-  notes: { height: 80, paddingTop: 12 },
+  notes: { height: 84, paddingTop: 12, textAlignVertical: 'top' },
   restaurantName: {
     color: colors.caramel,
     fontWeight: "800",
     fontSize: 11,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     textTransform: "uppercase",
     marginBottom: 4,
   },
-  strong: { fontWeight: "800", fontSize: 16, color: colors.espresso },
-  item: { paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.line },
+  strong: { fontWeight: "900", fontSize: 16, color: colors.espresso },
+  item: { paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.line },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 6,
   },
   detail: { color: colors.muted, fontSize: 12, marginTop: 3 },
-  error: { color: colors.danger, marginTop: 10 },
+  error: { color: colors.danger, marginTop: 10, fontWeight: '700' },
   method: {
     backgroundColor: colors.white,
     borderWidth: 2,
     borderColor: colors.line,
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 10,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    ...shadows.sm,
   },
-  methodActive: { borderColor: colors.coffee },
-  methodTitle: { color: colors.ink, fontWeight: "800" },
-  paymentCard: { marginTop: 8 },
+  methodActive: { borderColor: colors.espresso, backgroundColor: colors.creamSoft },
+  methodTitle: { color: colors.espresso, fontWeight: "800", fontSize: 15 },
+  paymentCard: { marginTop: 10 },
 });

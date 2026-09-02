@@ -151,6 +151,26 @@ export function Button({
   textStyle?: StyleProp<TextStyle>;
 }) {
   const effectiveVariant: ButtonVariant = variant || (secondary ? 'secondary' : 'primary');
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    if (disabled || loading) return;
+    Animated.spring(scaleAnim, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 25,
+      bounciness: 6,
+    }).start();
+  };
 
   const handlePress = () => {
     if (disabled || loading) return;
@@ -216,49 +236,52 @@ export function Button({
   };
 
   return (
-    <Pressable
-      onPress={handlePress}
-      disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.buttonBase,
-        getVariantContainerStyle(),
-        getSizeContainerStyle(),
-        disabled && styles.btnDisabled,
-        pressed && !disabled && !loading && styles.btnPressed,
-        style,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      {loading ? (
-        <ActivityIndicator size="small" color={getIconColor()} />
-      ) : (
-        <>
-          {icon && (
-            <Ionicons
-              name={icon}
-              size={size === 'sm' ? 15 : size === 'lg' ? 20 : 18}
-              color={getIconColor()}
-              style={{ marginRight: 6 }}
-            />
-          )}
-          <Text style={[styles.btnTextBase, getVariantTextStyle(), textStyle]}>{label}</Text>
-          {iconRight && (
-            <Ionicons
-              name={iconRight}
-              size={size === 'sm' ? 15 : size === 'lg' ? 20 : 18}
-              color={getIconColor()}
-              style={{ marginLeft: 6 }}
-            />
-          )}
-        </>
-      )}
-    </Pressable>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+        style={[
+          styles.buttonBase,
+          getVariantContainerStyle(),
+          getSizeContainerStyle(),
+          disabled && styles.btnDisabled,
+          style,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color={getIconColor()} />
+        ) : (
+          <>
+            {icon && (
+              <Ionicons
+                name={icon}
+                size={size === 'sm' ? 15 : size === 'lg' ? 20 : 18}
+                color={getIconColor()}
+                style={{ marginRight: 6 }}
+              />
+            )}
+            <Text style={[styles.btnTextBase, getVariantTextStyle(), textStyle]}>{label}</Text>
+            {iconRight && (
+              <Ionicons
+                name={iconRight}
+                size={size === 'sm' ? 15 : size === 'lg' ? 20 : 18}
+                color={getIconColor()}
+                style={{ marginLeft: 6 }}
+              />
+            )}
+          </>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
 /**
- * Card Component
+ * Card Component with Ambient Elevation & Spring Press
  */
 export function Card({
   children,
@@ -268,10 +291,12 @@ export function Card({
   onPress,
 }: PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
-  elevation?: 'none' | 'sm' | 'md' | 'lg';
+  elevation?: 'none' | 'sm' | 'md' | 'lg' | 'floating';
   interactive?: boolean;
   onPress?: () => void;
 }>) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
   const cardStyle = [
     styles.card,
     elevation === 'none'
@@ -280,21 +305,45 @@ export function Card({
         ? shadows.md
         : elevation === 'lg'
           ? shadows.lg
-          : shadows.sm,
+          : elevation === 'floating'
+            ? shadows.floating
+            : shadows.sm,
     style,
   ];
 
   if (interactive && onPress) {
+    const handlePressIn = () => {
+      Animated.spring(scaleAnim, {
+        toValue: 0.985,
+        useNativeDriver: true,
+        speed: 30,
+        bounciness: 4,
+      }).start();
+    };
+
+    const handlePressOut = () => {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 25,
+        bounciness: 6,
+      }).start();
+    };
+
     return (
-      <Pressable
-        onPress={() => {
-          triggerHaptic('light');
-          onPress();
-        }}
-        style={({ pressed }) => [cardStyle, pressed && styles.cardPressed]}
-      >
-        {children}
-      </Pressable>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <Pressable
+          onPress={() => {
+            triggerHaptic('light');
+            onPress();
+          }}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={cardStyle}
+        >
+          {children}
+        </Pressable>
+      </Animated.View>
     );
   }
 
@@ -466,36 +515,59 @@ export function Chip({
   badge?: number | string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 25,
+      bounciness: 6,
+    }).start();
+  };
+
   return (
-    <Pressable
-      onPress={() => {
-        triggerHaptic('light');
-        onPress();
-      }}
-      style={({ pressed }) => [
-        styles.chip,
-        selected && styles.chipSelected,
-        pressed && styles.chipPressed,
-        style,
-      ]}
-    >
-      {icon && (
-        <Ionicons
-          name={icon}
-          size={14}
-          color={selected ? colors.white : colors.caramel}
-          style={{ marginRight: 5 }}
-        />
-      )}
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-      {badge !== undefined && (
-        <View style={[styles.chipBadge, selected && styles.chipBadgeSelected]}>
-          <Text style={[styles.chipBadgeText, selected && styles.chipBadgeTextSelected]}>
-            {badge}
-          </Text>
-        </View>
-      )}
-    </Pressable>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPress={() => {
+          triggerHaptic('light');
+          onPress();
+        }}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[
+          styles.chip,
+          selected && styles.chipSelected,
+          style,
+        ]}
+      >
+        {icon && (
+          <Ionicons
+            name={icon}
+            size={14}
+            color={selected ? colors.white : colors.caramel}
+            style={{ marginRight: 5 }}
+          />
+        )}
+        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+        {badge !== undefined && (
+          <View style={[styles.chipBadge, selected && styles.chipBadgeSelected]}>
+            <Text style={[styles.chipBadgeText, selected && styles.chipBadgeTextSelected]}>
+              {badge}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -816,15 +888,14 @@ const styles = StyleSheet.create({
     color: colors.espresso,
   },
   card: {
-    backgroundColor: colors.paper,
+    backgroundColor: colors.cardBg,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.line,
   },
   cardPressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.99 }],
+    opacity: 0.95,
   },
   inputContainer: {
     marginBottom: spacing.sm,
@@ -882,29 +953,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderRadius: radii.xl,
-    paddingHorizontal: 14,
-    height: 46,
+    borderRadius: radii.full,
+    paddingHorizontal: 16,
+    height: 48,
     borderWidth: 1,
     borderColor: colors.line,
     ...shadows.sm,
   },
   searchInputField: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.ink,
   },
   statusPillWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.xs,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
     borderWidth: 1,
   },
   statusPillText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.3,
   },

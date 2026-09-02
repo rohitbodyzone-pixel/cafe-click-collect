@@ -17,7 +17,7 @@ import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useAdminAuth } from '@/src/context/AdminAuthContext';
 import { useOrders } from '@/src/context/OrderContext';
 import { money } from '@/src/data/products';
-import { colors } from '@/src/theme';
+import { colors, radii, shadows } from '@/src/theme';
 import { RoleGate } from '@/src/components/RoleGate';
 
 export default function SuperAdminScreen() {
@@ -795,13 +795,17 @@ const s = StyleSheet.create({
     fontSize: 13,
   },
   card: {
-    marginBottom: 12,
-    borderWidth: 1,
+    marginBottom: 14,
+    borderRadius: 18,
+    borderWidth: 1.5,
     borderColor: colors.line,
+    backgroundColor: colors.white,
+    ...shadows.sm,
   },
   selectedCard: {
-    borderColor: colors.caramel,
-    backgroundColor: '#FFFDF9',
+    borderColor: colors.espresso,
+    backgroundColor: colors.creamSoft,
+    ...shadows.md,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -811,69 +815,69 @@ const s = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     flexWrap: 'wrap',
   },
   name: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.espresso,
   },
   activeBadge: {
     backgroundColor: colors.espresso,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
   },
   activeBadgeText: {
     color: colors.white,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '800',
   },
   planBadge: {
     backgroundColor: colors.cream,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
   },
   planBadgePremium: {
     backgroundColor: '#FDEED9',
   },
   planBadgeText: {
     color: colors.espresso,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '800',
   },
   slug: {
     color: colors.muted,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   address: {
     color: colors.ink,
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 3,
   },
   hoursText: {
     color: colors.muted,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
   },
   switchWrap: {
     alignItems: 'center',
   },
   switchLabel: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     color: colors.muted,
     marginBottom: 2,
   },
   cardActions: {
     flexDirection: 'row',
-    gap: 6,
-    marginTop: 12,
-    paddingTop: 10,
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderColor: colors.line,
   },
@@ -884,13 +888,14 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 5,
     backgroundColor: colors.cream,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    ...shadows.sm,
   },
   manageBtnText: {
     color: colors.espresso,
     fontWeight: '800',
-    fontSize: 11,
+    fontSize: 12,
   },
   analyticsBtn: {
     flex: 1,
@@ -899,15 +904,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 5,
     backgroundColor: colors.white,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.line,
+    ...shadows.sm,
   },
   analyticsBtnText: {
     color: colors.espresso,
     fontWeight: '800',
-    fontSize: 11,
+    fontSize: 12,
   },
   viewPublicBtn: {
     flex: 0.8,
@@ -916,14 +922,14 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: 5,
     backgroundColor: colors.white,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.line,
   },
   viewPublicText: {
     color: colors.coffee,
     fontWeight: '800',
-    fontSize: 11,
+    fontSize: 12,
   },
 });
