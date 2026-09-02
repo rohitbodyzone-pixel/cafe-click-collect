@@ -99,7 +99,22 @@ export default function CustomerMarketplaceHome() {
 
   const handleSelectRestaurant = (restaurant: Restaurant) => {
     setCurrentRestaurant(restaurant);
-    router.push('/menu' as never);
+    router.push({
+      pathname: '/menu',
+      params: { restaurant: restaurant.slug, mode: orderMode },
+    });
+  };
+
+  const handleChooseDineIn = () => {
+    setOrderMode('table');
+    const target = featuredRestaurant || restaurants[0];
+    if (target) {
+      setCurrentRestaurant(target);
+      router.push({
+        pathname: '/menu',
+        params: { restaurant: target.slug, mode: 'table' },
+      });
+    }
   };
 
   const handleReorderUsual = () => {
@@ -137,7 +152,7 @@ export default function CustomerMarketplaceHome() {
           </Pressable>
           <Pressable
             style={[s.modePill, orderMode === 'table' && s.modePillActive]}
-            onPress={() => setOrderMode('table')}
+            onPress={handleChooseDineIn}
           >
             <Text style={[s.modePillText, orderMode === 'table' && s.modePillTextActive]}>
               🍽️ Dine In
@@ -191,7 +206,7 @@ export default function CustomerMarketplaceHome() {
 
               <Pressable
                 style={[s.startCard, orderMode === 'table' && s.startCardActive]}
-                onPress={() => setOrderMode('table')}
+                onPress={handleChooseDineIn}
               >
                 <View style={[s.startIconWrap, orderMode === 'table' && s.startIconWrapActive]}>
                   <Text style={s.startEmoji}>🍽️</Text>
@@ -435,7 +450,9 @@ export default function CustomerMarketplaceHome() {
                     </View>
 
                     <View style={s.collectPill}>
-                      <Text style={s.collectPillText}>Click & Collect</Text>
+                      <Text style={s.collectPillText}>
+                        {orderMode === 'table' ? '🍽️ Table Service' : 'Click & Collect'}
+                      </Text>
                     </View>
                   </View>
                 </View>

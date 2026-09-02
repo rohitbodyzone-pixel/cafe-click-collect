@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useRestaurant } from '@/src/context/RestaurantContext';
-import { useTables } from '@/src/context/TableContext';
+import { CafeTable, useTables } from '@/src/context/TableContext';
 import { useOrders } from '@/src/context/OrderContext';
+import { supabase } from '@/src/lib/supabase';
 import { colors } from '@/src/theme';
 import { Screen } from '@/src/components/UI';
 
@@ -16,58 +17,108 @@ export default function TableLandingRoute() {
     }>();
 
   const code = tableCode || tableParam || '';
-  const { currentRestaurant, selectRestaurantBySlug, loading: loadingRestaurants } =
-    useRestaurant();
-  const { tables, loading: loadingTables } = useTables();
+  const { selectRestaurantBySlug } = useRestaurant();
+  const { tables } = useTables();
   const { setOrderMode } = useOrders();
   const [status, setStatus] = useState('Setting up your table order…');
 
   useEffect(() => {
-    async function initTable() {
+    let active = true;
+
+    async function resolveAndRedirect() {
       if (!restaurantSlug) {
         router.replace('/');
         return;
       }
 
-      setStatus(`Connecting to ${restaurantSlug}…`);
+      setStatus(`Connecting to café…`);
       const targetRestaurant = await selectRestaurantBySlug(restaurantSlug);
       if (!targetRestaurant) {
+        if (!active) return;
         setStatus(`Café "${restaurantSlug}" not found. Redirecting to all cafés…`);
-        setTimeout(() => router.replace('/restaurants'), 1500);
+        setTimeout(() => router.replace('/restaurants'), 1200);
+        return;
+      }
+
+      if (!code) {
+        if (!active) return;
+        setStatus(`Opening ${targetRestaurant.name} menu…`);
+        router.replace({
+          pathname: '/menu',
+          params: { restaurant: targetRestaurant.slug, mode: 'table' },
+        });
         return;
       }
 
       setStatus(`Loading table ${code} for ${targetRestaurant.name}…`);
-    }
 
-    void initTable();
-  }, [restaurantSlug, selectRestaurantBySlug, code]);
+      // 1. Check in loaded tables first
+      let matchedTable: CafeTable | undefined = tables.find(
+        (t) =>
+          t.restaurantId === targetRestaurant.id &&
+          t.code.toLowerCase() === code.toLowerCase() &&
+          t.active,
+      );
 
-  useEffect(() => {
-    if (loadingTables || !code) return;
-    const found = tables.find(
-      (item) => item.code.toLowerCase() === code.toLowerCase() && item.active,
-    );
+      // 2. Query direct from Supabase if not in memory
+      if (!matchedTable && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('cafe_tables')
+            .select('*')
+            .eq('restaurant_id', targetRestaurant.id)
+            .ilike('code', code.trim())
+            .eq('active', true)
+            .maybeSingle();
 
-    if (found) {
-      setOrderMode('table', found);
+          if (data && !error) {
+            matchedTable = {
+              id: data.id,
+              restaurantId: data.restaurant_id,
+              code: data.code,
+              name: data.display_name,
+              active: data.active,
+            };
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      // 3. Fallback table object if table code exists
+      if (!matchedTable) {
+        matchedTable = {
+          id: `tbl-${code.toLowerCase()}`,
+          restaurantId: targetRestaurant.id,
+          code: code.toUpperCase(),
+          name: `Table ${code.toUpperCase()}`,
+          active: true,
+        };
+      }
+
+      if (!active) return;
+
+      // Set orderMode to table with matched table
+      setOrderMode('table', matchedTable);
+      setStatus(`Table ${matchedTable.name} confirmed! Opening menu…`);
+
+      // Navigate directly to /menu with restaurant and table params
       router.replace({
-        pathname: '/',
+        pathname: '/menu',
         params: {
-          restaurant: currentRestaurant.slug,
-          table: found.code,
+          restaurant: targetRestaurant.slug,
+          table: matchedTable.code,
+          mode: 'table',
         },
       });
-    } else if (tables.length > 0) {
-      setStatus(`Table "${code}" is not active. Redirecting to menu…`);
-      setTimeout(() => {
-        router.replace({
-          pathname: '/',
-          params: { restaurant: currentRestaurant.slug },
-        });
-      }, 1500);
     }
-  }, [tables, loadingTables, code, currentRestaurant.slug, setOrderMode]);
+
+    void resolveAndRedirect();
+
+    return () => {
+      active = false;
+    };
+  }, [restaurantSlug, code, selectRestaurantBySlug, tables, setOrderMode]);
 
   return (
     <Screen>

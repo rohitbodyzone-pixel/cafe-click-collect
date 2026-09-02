@@ -47,12 +47,6 @@ export default function RestaurantsScreen() {
   );
 
   const handleSelect = (restaurant: Restaurant) => {
-    if (restaurant.id === currentRestaurant.id) {
-      if (router.canGoBack()) router.back();
-      else router.replace('/');
-      return;
-    }
-
     if (cart.length > 0 && cartRestaurantId && cartRestaurantId !== restaurant.id) {
       const message = `Your cart has ${cart.length} item${cart.length === 1 ? '' : 's'} from ${cartRestaurantName || 'another café'}. Switching to ${restaurant.name} will clear your cart.`;
       if (Platform.OS === 'web') {
@@ -66,8 +60,7 @@ export default function RestaurantsScreen() {
             onPress: () => {
               clearCart();
               setCurrentRestaurant(restaurant);
-              if (router.canGoBack()) router.back();
-              else router.replace('/');
+              router.push({ pathname: '/menu', params: { restaurant: restaurant.slug } });
             },
           },
         ]);
@@ -76,17 +69,16 @@ export default function RestaurantsScreen() {
     }
 
     setCurrentRestaurant(restaurant);
-    if (router.canGoBack()) router.back();
-    else router.replace('/');
+    router.push({ pathname: '/menu', params: { restaurant: restaurant.slug } });
   };
 
   const confirmWebSwitch = () => {
     if (!switchPrompt) return;
     clearCart();
     setCurrentRestaurant(switchPrompt);
+    const slug = switchPrompt.slug;
     setSwitchPrompt(null);
-    if (router.canGoBack()) router.back();
-    else router.replace('/');
+    router.push({ pathname: '/menu', params: { restaurant: slug } });
   };
 
   return (
