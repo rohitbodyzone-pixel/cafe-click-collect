@@ -1,7 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const distDir = path.resolve(__dirname, '../dist');
+const root = process.cwd();
+const distDir = path.resolve(root, 'dist');
 const indexPath = path.join(distDir, 'index.html');
 
 if (!fs.existsSync(indexPath)) {
@@ -36,6 +37,7 @@ const routes = [
   'admin-tables',
   'admin-table-qr',
   'admin-menu',
+  'admin-menu-pdf',
   'admin-product',
   'admin-customisations',
   'admin-pickup-settings',
@@ -63,4 +65,4 @@ for (const route of routes) {
   fs.writeFileSync(path.join(targetDir, 'index.html'), indexContent, 'utf-8');
 }
 
-console.log(`✓ Generated ${routes.length} static route entry points in dist/ for 200 OK direct URL loading.`);
+console.log(`Generated static fallback pages for ${routes.length} SPA routes.`);

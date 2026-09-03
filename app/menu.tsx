@@ -14,6 +14,7 @@ import { useLoyalty } from '@/src/context/LoyaltyContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useCustomerExperience } from '@/src/context/CustomerExperienceContext';
 import { useFeaturePermission } from '@/src/context/FeaturePermissionContext';
+import { TableBellButton } from '@/src/components/TableBellModal';
 
 export default function DedicatedMenuScreen() {
   const { currentRestaurant, selectRestaurantBySlug } = useRestaurant();
@@ -170,6 +171,21 @@ export default function DedicatedMenuScreen() {
             </Pressable>
           )}
         </View>
+
+        {/* Table Bell & Active Seating Banner (Dine-In only) */}
+        {orderMode === 'table' && table && (
+          <View style={s.tableBannerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.tableBannerTitle}>
+                SEATED AT {table.name?.toUpperCase() || `TABLE ${table.code}`}
+              </Text>
+              <Text style={s.tableBannerSub}>
+                Orders delivered directly to your table
+              </Text>
+            </View>
+            <TableBellButton />
+          </View>
+        )}
 
         {/* Table Selector Picker */}
         {showTables && (
@@ -406,6 +422,29 @@ const s = StyleSheet.create({
   modeActive: { backgroundColor: colors.espresso, ...shadows.sm },
   modeText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
   modeTextActive: { color: colors.white, fontWeight: '800' },
+  tableBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: '#EBD8B8',
+    ...shadows.sm,
+  },
+  tableBannerTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.espresso,
+    letterSpacing: 0.8,
+  },
+  tableBannerSub: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+  },
   tablePicker: { backgroundColor: colors.white, borderRadius: 18, padding: 16, marginBottom: 14, gap: 10, borderWidth: 1, borderColor: colors.line, ...shadows.sm },
   tablePickerTitle: { fontSize: 16, fontWeight: '900', color: colors.ink },
   tablePickerHelp: { fontSize: 12, color: colors.muted },

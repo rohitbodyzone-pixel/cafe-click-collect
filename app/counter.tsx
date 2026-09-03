@@ -25,6 +25,7 @@ import { colors, radii, shadows } from '@/src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { money, Product } from '@/src/data/products';
 import { ProductImage } from '@/src/components/ProductImage';
+import { TableServiceAlerts } from '@/src/components/TableServiceAlerts';
 
 export default function CounterPortalScreen() {
   return (
@@ -371,6 +372,9 @@ function CounterPortalContent() {
       />
 
       <ScrollView style={s.container} contentContainerStyle={s.content}>
+        {/* Live Table Requests & Bell Alerts */}
+        <TableServiceAlerts />
+
         {/* Attendance Banner Card */}
         <Card style={[s.attendanceCard, isClockedIn ? s.attendanceCardIn : s.attendanceCardOut]}>
           <View style={s.attendanceHeader}>

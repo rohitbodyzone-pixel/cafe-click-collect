@@ -19,6 +19,7 @@ import { supabase } from '@/src/lib/supabase';
 import { colors, radii, shadows } from '@/src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { money } from '@/src/data/products';
+import { TableServiceAlerts } from '@/src/components/TableServiceAlerts';
 
 export default function ManagerScreen() {
   return (
@@ -99,6 +100,9 @@ function ManagerContent() {
       />
 
       <ScrollView style={s.container} contentContainerStyle={s.content}>
+        {/* Live Table Requests & Bell Alerts */}
+        <TableServiceAlerts title="Active Table Calls" />
+
         {/* Banner with Restaurant & Manager info */}
         <View style={s.topBanner}>
           <View style={{ flex: 1 }}>
@@ -189,9 +193,27 @@ function ManagerContent() {
           </Card>
         )}
 
-        {/* Manager Operational Stations */}
-        <Text style={s.gridTitle}>OPERATIONAL STATIONS</Text>
+        {/* Primary Operational Action Links */}
+        <Text style={s.gridTitle}>MANAGER OPERATIONS & STATIONS</Text>
         <View style={s.linkGrid}>
+          <ManagerActionLink
+            icon="restaurant-outline"
+            title="Manage Menu"
+            subtitle="Add, edit, duplicate, pricing & sold-out controls"
+            route="/admin-menu"
+          />
+          <ManagerActionLink
+            icon="document-text-outline"
+            title="Upload Menu PDF"
+            subtitle="Quick Menu Builder from PDF or photo"
+            route="/admin-menu-pdf"
+          />
+          <ManagerActionLink
+            icon="notifications-outline"
+            title="Table Requests"
+            subtitle="View & resolve active table calls"
+            route="/admin-tables"
+          />
           <ManagerActionLink
             icon="speedometer-outline"
             title="Kitchen KDS"
@@ -203,18 +225,6 @@ function ManagerContent() {
             title="Counter Terminal"
             subtitle="Take counter orders & staff clock in/out"
             route="/counter"
-          />
-          <ManagerActionLink
-            icon="grid-outline"
-            title="Tables & QR Layout"
-            subtitle="Dining tables & service requests"
-            route="/admin-tables"
-          />
-          <ManagerActionLink
-            icon="restaurant-outline"
-            title="Menu Catalog"
-            subtitle="Availability, descriptions & sold-out items"
-            route="/admin-menu"
           />
           <ManagerActionLink
             icon="construct-outline"

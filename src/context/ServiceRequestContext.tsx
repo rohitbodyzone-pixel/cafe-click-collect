@@ -13,8 +13,22 @@ import { useAdminAuth } from '@/src/context/AdminAuthContext';
 import { useLoyalty } from '@/src/context/LoyaltyContext';
 import { useOrders } from '@/src/context/OrderContext';
 
-export type ServiceRequestType = 'call_staff' | 'water' | 'bill';
+export type ServiceRequestType = 'call_staff' | 'water' | 'need_help' | 'bill' | string;
 export type ServiceRequestStatus = 'pending' | 'acknowledged' | 'completed' | 'cancelled';
+
+export const SERVICE_REQUEST_LABELS: Record<string, string> = {
+  call_staff: 'Call Staff',
+  water: 'Water Please',
+  need_help: 'Need Help',
+  bill: 'Ready to Pay / Bill',
+};
+
+export const SERVICE_REQUEST_ICONS: Record<string, string> = {
+  call_staff: 'notifications-outline',
+  water: 'water-outline',
+  need_help: 'help-circle-outline',
+  bill: 'receipt-outline',
+};
 
 export type TableServiceRequest = {
   id: string;

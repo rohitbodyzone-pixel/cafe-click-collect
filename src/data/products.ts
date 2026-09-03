@@ -6,7 +6,7 @@ export type Product = {
   emoji: string;
   imagePath?: string;
   imageUrl?: string;
-  category: 'Coffee' | 'Drinks' | 'Food';
+  category: 'Coffee' | 'Drinks' | 'Food' | string;
   soldOut: boolean;
   customisationGroupIds: string[];
 };

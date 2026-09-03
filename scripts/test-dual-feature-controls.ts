@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
-import { PLATFORM_FEATURES } from '../src/services/features/types';
+import * as fs from 'fs';
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://fxtzrphbvlzkkghzwsoy.supabase.co';
 const SUPABASE_ANON_KEY =
@@ -35,8 +35,10 @@ async function runDualControlTests() {
 
   // 1. Verify Full 58-Feature Registry Count & Database Seeding
   await test('Verify exactly 58 platform features are defined in registry and seeded for both restaurants', async () => {
-    if (PLATFORM_FEATURES.length !== 58) {
-      throw new Error(`Expected 58 features in registry, got ${PLATFORM_FEATURES.length}`);
+    const typesContent = fs.readFileSync(path.resolve(process.cwd(), 'src/services/features/types.ts'), 'utf-8');
+    const featureMatches = typesContent.match(/key:\s*'([a-z_]+)'/g) || [];
+    if (featureMatches.length !== 58) {
+      throw new Error(`Expected 58 features in registry, got ${featureMatches.length}`);
     }
 
     const { data: dbFeaturesA, error: errA } = await supabase

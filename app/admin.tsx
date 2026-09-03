@@ -14,6 +14,7 @@ import { useFeaturePermission } from "@/src/context/FeaturePermissionContext";
 import { supabase } from "@/src/lib/supabase";
 import * as ImagePicker from "expo-image-picker";
 import { RestaurantCoverImage, RestaurantLogoImage } from "@/src/components/RestaurantImage";
+import { TableServiceAlerts } from "@/src/components/TableServiceAlerts";
 
 const tabs: OrderStatus[] = ["Incoming", "Accepted", "Preparing", "Ready", "Collected"];
 const next: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -38,21 +39,7 @@ const AdminLink = ({
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   text: string;
-  route:
-    | "/admin-features"
-    | "/admin-payouts"
-    | "/admin-growth"
-    | "/admin-ai"
-    | "/admin-operations"
-    | "/admin-analytics"
-    | "/admin-kitchen"
-    | "/admin-menu"
-    | "/admin-pickup-settings"
-    | "/admin-tables"
-    | "/admin-customisations"
-    | "/admin-loyalty"
-    | "/admin-staff"
-    | "/super-admin";
+  route: string;
 }) => (
   <Pressable style={styles.menuLink} onPress={() => router.push(route as never)}>
     <View style={styles.menuIcon}>
@@ -227,6 +214,7 @@ export default function Admin() {
         }
       />
       <AdminOrderAlerts />
+      <TableServiceAlerts />
 
       {/* Role & Cafe Header */}
       <View style={styles.restaurantBar}>
@@ -409,9 +397,15 @@ export default function Admin() {
         />
         <AdminLink
           icon="restaurant-outline"
-          title="Menu & Pricing Editor"
+          title="Edit Menu & Pricing Catalog"
           text="Product catalog, pricing, item descriptions, duplicate & availability"
           route="/admin-menu"
+        />
+        <AdminLink
+          icon="document-text-outline"
+          title="Upload Menu PDF (Quick Builder)"
+          text="Auto-extract menu items, categories and prices from PDF or photo"
+          route="/admin-menu-pdf"
         />
         <AdminLink
           icon="grid-outline"

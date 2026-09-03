@@ -6,6 +6,7 @@ function runTests() {
 
   let passed = 0;
   let total = 0;
+  const root = process.cwd();
 
   function assert(condition: boolean, name: string) {
     total++;
@@ -19,7 +20,7 @@ function runTests() {
   }
 
   // 1. Check CustomerBottomNav component exists and contains 5 tabs
-  const navPath = path.resolve(__dirname, '../src/components/CustomerBottomNav.tsx');
+  const navPath = path.resolve(root, 'src/components/CustomerBottomNav.tsx');
   assert(fs.existsSync(navPath), 'CustomerBottomNav component exists');
   const navContent = fs.readFileSync(navPath, 'utf-8');
   assert(
@@ -32,7 +33,7 @@ function runTests() {
   );
 
   // 2. Check app/profile.tsx exists and has required sections
-  const profilePath = path.resolve(__dirname, '../app/profile.tsx');
+  const profilePath = path.resolve(root, 'app/profile.tsx');
   assert(fs.existsSync(profilePath), 'app/profile.tsx exists');
   const profileContent = fs.readFileSync(profilePath, 'utf-8');
   assert(
@@ -49,7 +50,7 @@ function runTests() {
   );
 
   // 3. Check app/index.tsx has Pickup/Dine In choice cards and mode switcher
-  const indexPath = path.resolve(__dirname, '../app/index.tsx');
+  const indexPath = path.resolve(root, 'app/index.tsx');
   const indexContent = fs.readFileSync(indexPath, 'utf-8');
   assert(
     indexContent.includes('startSection') &&
@@ -76,13 +77,13 @@ function runTests() {
   );
 
   // 4. Check existing /rewards and /passes routes remain intact
-  const rewardsPath = path.resolve(__dirname, '../app/rewards.tsx');
-  const passesPath = path.resolve(__dirname, '../app/passes.tsx');
+  const rewardsPath = path.resolve(root, 'app/rewards.tsx');
+  const passesPath = path.resolve(root, 'app/passes.tsx');
   assert(fs.existsSync(rewardsPath), 'Direct /rewards route preserved');
   assert(fs.existsSync(passesPath), 'Direct /passes route preserved');
 
   // 5. Check static page generation includes profile
-  const staticGenPath = path.resolve(__dirname, '../scripts/generate-static-pages.ts');
+  const staticGenPath = path.resolve(root, 'scripts/generate-static-pages.ts');
   const staticGenContent = fs.readFileSync(staticGenPath, 'utf-8');
   assert(
     staticGenContent.includes("'profile'"),

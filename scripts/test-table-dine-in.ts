@@ -181,7 +181,7 @@ async function runDineInTests() {
   );
 
   // 8. Static file check for GitHub Pages QR routing
-  const staticGenPath = path.resolve(__dirname, 'generate-static-pages.ts');
+  const staticGenPath = path.resolve(process.cwd(), 'scripts/generate-static-pages.ts');
   const staticContent = fs.readFileSync(staticGenPath, 'utf-8');
   assert(
     staticContent.includes('r/common-ground/table/5') &&
@@ -191,8 +191,8 @@ async function runDineInTests() {
 
   // 9. TableLandingRoute code verification
   const qrRoutePath = path.resolve(
-    __dirname,
-    '../app/r/[restaurant]/table/[tableCode].tsx'
+    process.cwd(),
+    'app/r/[restaurant]/table/[tableCode].tsx'
   );
   const qrRouteContent = fs.readFileSync(qrRoutePath, 'utf-8');
   assert(
@@ -202,7 +202,7 @@ async function runDineInTests() {
   );
 
   // 10. Home screen Dine In handler verification
-  const homePath = path.resolve(__dirname, '../app/index.tsx');
+  const homePath = path.resolve(process.cwd(), 'app/index.tsx');
   const homeContent = fs.readFileSync(homePath, 'utf-8');
   assert(
     homeContent.includes('handleChooseDineIn') &&

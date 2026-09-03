@@ -243,7 +243,7 @@ export default function OrderStatusScreen() {
               ]}
               onPress={() => void handleTableService('call_staff')}
             >
-              <Ionicons name="hand-right-outline" size={18} color={colors.espresso} />
+              <Ionicons name="notifications-outline" size={16} color={colors.espresso} />
               <Text style={s.serviceBtnText}>
                 {isCoolingDown('call_staff') ? 'Sent' : 'Call Staff'}
               </Text>
@@ -257,9 +257,23 @@ export default function OrderStatusScreen() {
               ]}
               onPress={() => void handleTableService('water')}
             >
-              <Ionicons name="water-outline" size={18} color={colors.espresso} />
+              <Ionicons name="water-outline" size={16} color={colors.espresso} />
               <Text style={s.serviceBtnText}>
                 {isCoolingDown('water') ? 'Sent' : 'Water'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              disabled={busyService || isCoolingDown('need_help')}
+              style={[
+                s.serviceBtn,
+                isCoolingDown('need_help') && s.serviceBtnDisabled,
+              ]}
+              onPress={() => void handleTableService('need_help')}
+            >
+              <Ionicons name="help-circle-outline" size={16} color={colors.espresso} />
+              <Text style={s.serviceBtnText}>
+                {isCoolingDown('need_help') ? 'Sent' : 'Need Help'}
               </Text>
             </Pressable>
 
@@ -271,7 +285,7 @@ export default function OrderStatusScreen() {
               ]}
               onPress={() => void handleTableService('bill')}
             >
-              <Ionicons name="receipt-outline" size={18} color={colors.espresso} />
+              <Ionicons name="receipt-outline" size={16} color={colors.espresso} />
               <Text style={s.serviceBtnText}>
                 {isCoolingDown('bill') ? 'Sent' : 'Bill'}
               </Text>
