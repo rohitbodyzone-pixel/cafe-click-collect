@@ -49,13 +49,6 @@ export default function DedicatedMenuScreen() {
     }
   }, [mode, orderMode, setOrderMode]);
 
-  // If table mode is active and no table selected yet, open table picker
-  useEffect(() => {
-    if ((mode === 'table' || orderMode === 'table') && !table) {
-      setShowTables(true);
-    }
-  }, [mode, orderMode, table]);
-
   // Handle Table QR code scanning
   useEffect(() => {
     if (!tableCode || loadingTables) return;
@@ -134,56 +127,31 @@ export default function DedicatedMenuScreen() {
           </View>
         )}
 
-        {/* Dining Modes: Click & Collect vs Order at Table */}
-        <View style={s.modeRow}>
-          {isFeatureEnabled('click_and_collect') && (
-            <Pressable
-              style={[s.mode, orderMode === 'pickup' && s.modeActive]}
-              onPress={() => {
-                setOrderMode('pickup');
-                setShowTables(false);
-              }}
-            >
-              <Ionicons
-                name="bag-handle-outline"
-                size={14}
-                color={orderMode === 'pickup' ? colors.white : colors.espresso}
-              />
-              <Text style={[s.modeText, orderMode === 'pickup' && s.modeTextActive]}>
-                Click & Collect
-              </Text>
-            </Pressable>
-          )}
-
-          {isFeatureEnabled('table_ordering') && (
-            <Pressable
-              style={[s.mode, orderMode === 'table' && s.modeActive]}
-              onPress={() => setShowTables((current) => !current)}
-            >
-              <Ionicons
-                name="restaurant-outline"
-                size={14}
-                color={orderMode === 'table' ? colors.white : colors.espresso}
-              />
-              <Text style={[s.modeText, orderMode === 'table' && s.modeTextActive]}>
-                {table ? table.name : 'Table Service'}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* Table Bell & Active Seating Banner (Dine-In only) */}
-        {orderMode === 'table' && table && (
+        {/* Dining Mode Banner */}
+        {orderMode === 'table' && table ? (
           <View style={s.tableBannerRow}>
+            <View style={s.tableIconCircle}>
+              <Ionicons name="restaurant" size={18} color={colors.white} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={s.tableBannerTitle}>
-                SEATED AT {table.name?.toUpperCase() || `TABLE ${table.code}`}
+                Dining at {table.name || `Table ${table.code}`}
               </Text>
               <Text style={s.tableBannerSub}>
-                Orders delivered directly to your table
+                Table order locked · Served to your seat
               </Text>
             </View>
             <TableBellButton />
+          </View>
+        ) : (
+          <View style={s.pickupModeBanner}>
+            <View style={s.pickupIconCircle}>
+              <Ionicons name="bag-handle" size={16} color={colors.espresso} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pickupBannerTitle}>CLICK & COLLECT ORDER</Text>
+              <Text style={s.pickupBannerSub}>Order ahead & collect at counter</Text>
+            </View>
           </View>
         )}
 
@@ -425,7 +393,7 @@ const s = StyleSheet.create({
   tableBannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     backgroundColor: colors.white,
     borderRadius: 18,
     padding: 14,
@@ -434,16 +402,55 @@ const s = StyleSheet.create({
     borderColor: '#EBD8B8',
     ...shadows.sm,
   },
+  tableIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.espresso,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tableBannerTitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '900',
     color: colors.espresso,
-    letterSpacing: 0.8,
+    letterSpacing: -0.2,
   },
   tableBannerSub: {
     fontSize: 11,
     color: colors.muted,
     marginTop: 2,
+    fontWeight: '600',
+  },
+  pickupModeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.creamSoft,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  pickupIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickupBannerTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.espresso,
+    letterSpacing: 0.8,
+  },
+  pickupBannerSub: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 1,
   },
   tablePicker: { backgroundColor: colors.white, borderRadius: 18, padding: 16, marginBottom: 14, gap: 10, borderWidth: 1, borderColor: colors.line, ...shadows.sm },
   tablePickerTitle: { fontSize: 16, fontWeight: '900', color: colors.ink },

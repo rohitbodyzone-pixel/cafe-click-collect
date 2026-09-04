@@ -53,6 +53,8 @@ const routes = [
   'super-admin',
   'super-admin-billing',
   'super-admin-features',
+  ...Array.from({ length: 20 }, (_, i) => `r/common-ground/table/${i + 1}`),
+  ...Array.from({ length: 20 }, (_, i) => `r/trattoria-bella/table/${i + 1}`),
   'r/common-ground/table/5',
   'r/trattoria-bella/table/B10',
 ];

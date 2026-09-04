@@ -57,17 +57,19 @@ export default function Checkout() {
     if (!payments.payAtCounterEnabled && method === "pay_at_counter")
       setMethod("card");
   }, [payments.payAtCounterEnabled, method]);
-  const valid = isTable ? !!table : !!name.trim() && !!phone.trim();
+  const valid = isTable ? !!table && (name.trim().length > 0 || true) : !!name.trim() && !!phone.trim();
   const continueCheckout = async () => {
     setBusy(true);
     setError("");
     try {
+      const finalCustomerName = name.trim() || (isTable ? `Guest at ${table?.name || 'Table'}` : 'Guest');
+      const finalPhone = phone.trim() || (isTable ? 'Table Order' : '');
       if (method === "pay_at_counter") {
-        const order = await placeOrder(name.trim(), phone.trim());
+        const order = await placeOrder(finalCustomerName, finalPhone);
         router.replace({ pathname: "/confirmation", params: { id: order.id } });
         return;
       }
-      setSession(await startOnlinePayment(name.trim(), phone.trim(), method));
+      setSession(await startOnlinePayment(finalCustomerName, finalPhone, method));
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Could not start checkout",
@@ -95,11 +97,26 @@ export default function Checkout() {
       <Header title="Checkout" />
       {isTable ? (
         <>
-          <Text style={styles.heading}>Order at {table?.name}</Text>
+          <View style={styles.tableBannerCard}>
+            <Text style={styles.tableBannerTitle}>
+              🍽️ DINING AT {table?.name?.toUpperCase() || `TABLE ${table?.code}`}
+            </Text>
+            <Text style={styles.tableBannerSub}>
+              {cartRestaurantName || 'Restaurant'} · Order delivered directly to your table
+            </Text>
+          </View>
+
+          <Text style={styles.heading}>Your Details</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Your Name (e.g. Rohit)"
+            value={name}
+            onChangeText={setName}
+          />
           <TextInput
             style={[styles.input, styles.notes]}
             multiline
-            placeholder="Optional order notes"
+            placeholder="Special instructions or allergies (optional)"
             value={orderNotes}
             onChangeText={setOrderNotes}
           />
@@ -122,8 +139,8 @@ export default function Checkout() {
         </>
       )}
       <Card>
-        <Text style={styles.restaurantName}>{orderMode === 'table' ? `${table?.name} · ${cartRestaurantName || ''}` : `${pickupTime} · ${cartRestaurantName || ''}`}</Text>
-        <Text style={styles.strong}>{isTable ? table?.name : pickupTime}</Text>
+        <Text style={styles.restaurantName}>{orderMode === 'table' ? `TABLE ${table?.code || ''} · ${cartRestaurantName || ''}` : `${pickupTime} · ${cartRestaurantName || ''}`}</Text>
+        <Text style={styles.strong}>{isTable ? `${table?.name} (Table ${table?.code})` : pickupTime}</Text>
         {cart.map((item) => (
           <View key={item.cartKey} style={styles.item}>
             <View style={styles.row}>
@@ -229,7 +246,28 @@ export default function Checkout() {
     </Screen>
   );
 }
+
 const styles = StyleSheet.create({
+  tableBannerCard: {
+    backgroundColor: colors.creamSoft,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#EBD8B8',
+  },
+  tableBannerTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.espresso,
+    letterSpacing: 0.5,
+  },
+  tableBannerSub: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+    fontWeight: '600',
+  },
   heading: {
     fontSize: 19,
     fontWeight: "800",

@@ -60,7 +60,41 @@ function CounterPortalContent() {
   const { currentRestaurant } = useRestaurant();
   const { products } = useProducts();
   const { groups } = useCustomisations();
-  const { orders } = useOrders();
+  const { orders, updateOrderStatus } = useOrders();
+  const [approvingOrderId, setApprovingOrderId] = useState<string | null>(null);
+
+  const unapprovedTableOrders = useMemo(() => {
+    return orders.filter(
+      (o) =>
+        o.orderType === 'table' &&
+        (o.status === 'Incoming' || (o.status as string) === 'pending') &&
+        (o.restaurantId === currentRestaurant.id || !o.restaurantId),
+    );
+  }, [orders, currentRestaurant.id]);
+
+  const handleApproveTableOrder = async (orderId: string) => {
+    triggerHaptic('success');
+    setApprovingOrderId(orderId);
+    try {
+      await updateOrderStatus(orderId, 'Accepted');
+    } catch (e: any) {
+      alert(e.message || 'Could not approve table order');
+    } finally {
+      setApprovingOrderId(null);
+    }
+  };
+
+  const handleRejectTableOrder = async (orderId: string) => {
+    triggerHaptic('medium');
+    setApprovingOrderId(orderId);
+    try {
+      await updateOrderStatus(orderId, 'Cancelled');
+    } catch (e: any) {
+      alert(e.message || 'Could not reject table order');
+    } finally {
+      setApprovingOrderId(null);
+    }
+  };
 
   // Attendance state
   const [activeSession, setActiveSession] = useState<ActiveAttendance | null>(null);
@@ -375,7 +409,85 @@ function CounterPortalContent() {
         {/* Live Table Requests & Bell Alerts */}
         <TableServiceAlerts />
 
-        {/* Attendance Banner Card */}
+        {/* 🔔 UNAPPROVED TABLE ORDERS SECTION */}
+        {unapprovedTableOrders.length > 0 && (
+          <View style={s.unapprovedSection}>
+            <View style={s.unapprovedHeaderRow}>
+              <View style={s.unapprovedBadge}>
+                <Ionicons name="notifications" size={14} color={colors.white} />
+                <Text style={s.unapprovedBadgeText}>
+                  {unapprovedTableOrders.length} NEW TABLE ORDER{unapprovedTableOrders.length > 1 ? 'S' : ''} AWAITING APPROVAL
+                </Text>
+              </View>
+            </View>
+
+            {unapprovedTableOrders.map((to) => {
+              const tableLabel = to.table?.name || `Table ${to.table?.code || '—'}`;
+              return (
+                <Card key={to.id} style={s.tableOrderCard}>
+                  <View style={s.tableOrderCardHeader}>
+                    <View style={s.tableOrderTitleWrap}>
+                      <View style={s.tableNumberPill}>
+                        <Text style={s.tableNumberPillText}>
+                          {tableLabel.toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={s.tableCustomerName}>
+                          Customer: <Text style={{ fontWeight: '900', color: colors.espresso }}>{to.customerName}</Text>
+                        </Text>
+                        <Text style={s.tableOrderMeta}>
+                          {currentRestaurant.name} · Order #{to.id} · {new Date(to.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={s.tableOrderPrice}>{money(to.total)}</Text>
+                  </View>
+
+                  {/* Items list */}
+                  <View style={s.tableOrderItemsList}>
+                    {to.items.map((item, idx) => (
+                      <Text key={idx} style={s.tableOrderItemLine}>
+                        • {item.quantity}× {item.product.name}
+                        {item.customisations && item.customisations.length > 0
+                          ? ` (${item.customisations.map((c) => c.optionName).join(', ')})`
+                          : ''}
+                      </Text>
+                    ))}
+                    {!!to.orderNotes && (
+                      <Text style={s.tableOrderNote}>Special instructions: {to.orderNotes}</Text>
+                    )}
+                  </View>
+
+                  {/* Action Buttons */}
+                  <View style={s.tableOrderActionRow}>
+                    <Pressable
+                      style={s.rejectBtn}
+                      disabled={approvingOrderId === to.id}
+                      onPress={() => handleRejectTableOrder(to.id)}
+                    >
+                      <Text style={s.rejectBtnText}>Reject / Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={s.approveBtn}
+                      disabled={approvingOrderId === to.id}
+                      onPress={() => handleApproveTableOrder(to.id)}
+                    >
+                      {approvingOrderId === to.id ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle" size={16} color={colors.white} />
+                          <Text style={s.approveBtnText}>APPROVE ORDER</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
+                </Card>
+              );
+            })}
+          </View>
+        )}
         <Card style={[s.attendanceCard, isClockedIn ? s.attendanceCardIn : s.attendanceCardOut]}>
           <View style={s.attendanceHeader}>
             <View style={{ flex: 1 }}>
@@ -943,4 +1055,134 @@ const s = StyleSheet.create({
   modalQtyBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' },
   modalQtyValue: { fontSize: 15, fontWeight: '900', color: colors.espresso, minWidth: 24, textAlign: 'center' },
   modalFooter: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.line },
+
+  // Unapproved Table Orders Styles
+  unapprovedSection: {
+    marginBottom: 16,
+  },
+  unapprovedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  unapprovedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#D9534F',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    ...shadows.sm,
+  },
+  unapprovedBadgeText: {
+    color: colors.white,
+    fontWeight: '900',
+    fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  tableOrderCard: {
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#F0C987',
+    ...shadows.md,
+  },
+  tableOrderCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    paddingBottom: 12,
+    marginBottom: 10,
+  },
+  tableOrderTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  tableNumberPill: {
+    backgroundColor: colors.espresso,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  tableNumberPillText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  tableCustomerName: {
+    fontSize: 14,
+    color: colors.ink,
+    fontWeight: '700',
+  },
+  tableOrderMeta: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  tableOrderPrice: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.espresso,
+    marginLeft: 8,
+  },
+  tableOrderItemsList: {
+    backgroundColor: colors.creamSoft,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  tableOrderItemLine: {
+    fontSize: 12,
+    color: colors.espresso,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  tableOrderNote: {
+    fontSize: 11,
+    color: colors.caramel,
+    fontWeight: '800',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  tableOrderActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  rejectBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+  },
+  rejectBtnText: {
+    color: colors.muted,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  approveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#2D7D46',
+    ...shadows.sm,
+  },
+  approveBtnText: {
+    color: colors.white,
+    fontWeight: '900',
+    fontSize: 12,
+    letterSpacing: 0.5,
+  },
 });

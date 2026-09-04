@@ -124,6 +124,35 @@ export default function OrderStatusScreen() {
         <Text style={s.orderId}>Order #{order?.id || '—'}</Text>
       </View>
 
+      {/* Strong In-App Banner for Table Orders (Waiting vs Confirmed) */}
+      {table && order?.status === 'Incoming' && (
+        <View style={s.waitingConfirmAlert}>
+          <View style={s.waitingConfirmIcon}>
+            <Ionicons name="time" size={24} color={colors.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.waitingConfirmTitle}>Order sent to restaurant</Text>
+            <Text style={s.waitingConfirmSub}>
+              Waiting for restaurant confirmation · {restaurantName} · {order?.table?.name || 'Table'}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {table && (order?.status === 'Accepted' || order?.status === 'Preparing') && (
+        <View style={s.tableConfirmedAlert}>
+          <View style={s.tableConfirmedIcon}>
+            <Ionicons name="checkmark-circle" size={24} color={colors.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.tableConfirmedTitle}>Order Confirmed</Text>
+            <Text style={s.tableConfirmedSub}>
+              Your order for {order?.table?.name || 'Table'} has been accepted!
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Strong In-App Banner When Ready */}
       {isReady && (
         <View style={s.readyAlert}>
@@ -153,12 +182,16 @@ export default function OrderStatusScreen() {
             : order?.status === 'Preparing'
               ? 'Preparing your items'
               : order?.status === 'Accepted'
-                ? 'Order accepted by café'
-                : 'Order received'}
+                ? table
+                  ? 'Order Confirmed by Café'
+                  : 'Order accepted by café'
+                : table
+                  ? 'Order sent to restaurant'
+                  : 'Order received'}
       </Text>
       <Text style={s.subtitle}>
         {table
-          ? `Table Service · ${order?.table?.name || 'Table'}`
+          ? `Dining at ${order?.table?.name || 'Table'}`
           : `Pickup Time: ${order?.pickupTime || 'Scheduled for today'}`}
       </Text>
 
@@ -447,6 +480,64 @@ const s = StyleSheet.create({
     fontWeight: '900',
     fontSize: 15,
     marginTop: 2,
+  },
+  waitingConfirmAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#9A5B13',
+    borderRadius: 18,
+    padding: 16,
+    marginVertical: 12,
+    ...shadows.sm,
+  },
+  waitingConfirmIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#D97706',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waitingConfirmTitle: {
+    color: colors.white,
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  waitingConfirmSub: {
+    color: '#FDE68A',
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 16,
+  },
+  tableConfirmedAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E4620',
+    borderRadius: 18,
+    padding: 16,
+    marginVertical: 12,
+    ...shadows.sm,
+  },
+  tableConfirmedIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tableConfirmedTitle: {
+    color: colors.white,
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  tableConfirmedSub: {
+    color: '#D4EBD6',
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 16,
   },
   readyAlert: {
     flexDirection: 'row',

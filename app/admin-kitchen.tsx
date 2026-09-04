@@ -90,7 +90,13 @@ export default function AdminKitchenScreen() {
     setLastCount(incomingCount);
   }, [orders, lastCount, soundEnabled]);
 
-  const activeOrders = orders.filter((o) => o.status !== 'Collected' && o.status !== 'Cancelled');
+  // In Kitchen, active prep orders are accepted/preparing/ready, or incoming pickup orders (unapproved table orders wait for Counter approval)
+  const activeOrders = orders.filter(
+    (o) =>
+      o.status !== 'Collected' &&
+      o.status !== 'Cancelled' &&
+      !(o.orderType === 'table' && o.status === 'Incoming'),
+  );
   const pendingRequests = serviceRequests.filter((r) => r.status === 'pending' || r.status === 'acknowledged');
 
   const filteredOrders = useMemo(() => {
@@ -316,17 +322,22 @@ export default function AdminKitchenScreen() {
               <View style={s.cardHeader}>
                 <View style={{ flex: 1 }}>
                   <View style={s.badgeRow}>
-                    {/* Order Type Badge */}
-                    <View style={[s.typeBadge, order.orderType === 'table' ? s.tableTypeBadge : s.pickupTypeBadge]}>
-                      <Ionicons
-                        name={order.orderType === 'table' ? 'restaurant' : 'bag-handle'}
-                        size={11}
-                        color={order.orderType === 'table' ? colors.white : colors.espresso}
-                      />
-                      <Text style={[s.typeBadgeText, order.orderType === 'table' ? s.tableTypeBadgeText : s.pickupTypeBadgeText]}>
-                        {order.orderType === 'table' ? `TABLE · ${order.table?.name || 'Table'}` : 'CLICK & COLLECT'}
-                      </Text>
-                    </View>
+                    {/* Order Type / Table Prominent Header */}
+                    {order.orderType === 'table' ? (
+                      <View style={s.tableTypeBadge}>
+                        <Ionicons name="restaurant" size={13} color={colors.white} />
+                        <Text style={s.tableTypeBadgeText}>
+                          {order.table?.name?.toUpperCase() || `TABLE ${order.table?.code || ''}`}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={s.pickupTypeBadge}>
+                        <Ionicons name="bag-handle" size={12} color={colors.espresso} />
+                        <Text style={s.pickupTypeBadgeText}>
+                          PICKUP · {order.pickupTime || 'CLICK & COLLECT'}
+                        </Text>
+                      </View>
+                    )}
 
                     {/* Status Badge */}
                     <View style={[s.statusBadge, s[`status_${order.status}`]]}>
@@ -335,7 +346,7 @@ export default function AdminKitchenScreen() {
                   </View>
 
                   <Text style={s.orderId}>
-                    {order.customerName} · <Text style={s.pickupCode}>#{order.id.slice(-4).toUpperCase()}</Text>
+                    Customer: <Text style={{ fontWeight: '900', color: colors.espresso }}>{order.customerName}</Text> · <Text style={s.pickupCode}>Order #{order.id}</Text>
                   </Text>
                 </View>
 
@@ -432,11 +443,11 @@ const s = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   badgeRow: { flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 4 },
   typeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
-  tableTypeBadge: { backgroundColor: colors.espresso },
-  pickupTypeBadge: { backgroundColor: colors.cream },
+  tableTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.espresso, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  pickupTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.cream, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   typeBadgeText: { fontSize: 9, fontWeight: '800' },
-  tableTypeBadgeText: { color: colors.white },
-  pickupTypeBadgeText: { color: colors.espresso },
+  tableTypeBadgeText: { color: colors.white, fontWeight: '900', fontSize: 11, letterSpacing: 0.5 },
+  pickupTypeBadgeText: { color: colors.espresso, fontWeight: '800', fontSize: 10 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
   status_Incoming: { backgroundColor: '#FDEED9' },
   status_Accepted: { backgroundColor: '#E3EDF7' },

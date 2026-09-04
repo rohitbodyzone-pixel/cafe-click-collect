@@ -126,39 +126,29 @@ export default function CustomerMarketplaceHome() {
 
   return (
     <Screen>
-      {/* 1. Premium Customer Header & Mode Switcher */}
+      {/* 1. Premium Customer Header */}
       <View style={s.topHeader}>
         <View style={s.locationWrap}>
           <View style={s.pinCircle}>
             <Ionicons name="location" size={14} color={colors.caramel} />
           </View>
           <View>
-            <Text style={s.pickupLabel}>
-              {orderMode === 'table' ? 'TABLE DINE-IN SERVICE' : 'CLICK & COLLECT LOCATION'}
-            </Text>
+            <Text style={s.pickupLabel}>CLICK & COLLECT LOCATION</Text>
             <Text style={s.locationText}>Auckland Central, NZ ▾</Text>
           </View>
         </View>
 
-        {/* Small Header Switcher to toggle mode anytime */}
-        <View style={s.modeSwitcherRow}>
-          <Pressable
-            style={[s.modePill, orderMode === 'pickup' && s.modePillActive]}
-            onPress={() => setOrderMode('pickup')}
-          >
-            <Text style={[s.modePillText, orderMode === 'pickup' && s.modePillTextActive]}>
-              🥡 Pickup
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[s.modePill, orderMode === 'table' && s.modePillActive]}
-            onPress={handleChooseDineIn}
-          >
-            <Text style={[s.modePillText, orderMode === 'table' && s.modePillTextActive]}>
-              🍽️ Dine In
-            </Text>
-          </Pressable>
-        </View>
+        <Pressable
+          style={s.topCartBtn}
+          onPress={() => router.push('/cart')}
+        >
+          <Ionicons name="bag-handle" size={18} color={colors.espresso} />
+          {cartCount > 0 && (
+            <View style={s.topCartBadge}>
+              <Text style={s.topCartBadgeText}>{cartCount}</Text>
+            </View>
+          )}
+        </Pressable>
       </View>
 
       {/* 2. Global Customer Search Bar */}
@@ -179,53 +169,6 @@ export default function CustomerMarketplaceHome() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {/* Starting Experience: "How would you like to order?" */}
-        {!search && (
-          <View style={s.startSection}>
-            <Text style={s.startSectionEyebrow}>START ORDER</Text>
-            <Text style={s.startSectionTitle}>How would you like to order?</Text>
-
-            <View style={s.startCardsRow}>
-              <Pressable
-                style={[s.startCard, orderMode === 'pickup' && s.startCardActive]}
-                onPress={() => setOrderMode('pickup')}
-              >
-                <View style={[s.startIconWrap, orderMode === 'pickup' && s.startIconWrapActive]}>
-                  <Text style={s.startEmoji}>🥡</Text>
-                </View>
-                <Text style={[s.startCardTitle, orderMode === 'pickup' && s.startCardTitleActive]}>
-                  PICKUP
-                </Text>
-                <Text style={s.startCardSub}>Order ahead & collect</Text>
-                {orderMode === 'pickup' && (
-                  <View style={s.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color={colors.espresso} />
-                  </View>
-                )}
-              </Pressable>
-
-              <Pressable
-                style={[s.startCard, orderMode === 'table' && s.startCardActive]}
-                onPress={handleChooseDineIn}
-              >
-                <View style={[s.startIconWrap, orderMode === 'table' && s.startIconWrapActive]}>
-                  <Text style={s.startEmoji}>🍽️</Text>
-                </View>
-                <Text style={[s.startCardTitle, orderMode === 'table' && s.startCardTitleActive]}>
-                  DINE IN
-                </Text>
-                <Text style={s.startCardSub}>
-                  {table ? `Seated at ${table.name}` : 'Order at your table'}
-                </Text>
-                {orderMode === 'table' && (
-                  <View style={s.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color={colors.espresso} />
-                  </View>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        )}
 
         {/* Contextual Rewards Reminder on Home */}
         {!search && isFeatureEnabled('loyalty_rewards') && balance.freeCoffees > 0 && (
@@ -509,12 +452,31 @@ const s = StyleSheet.create({
   },
   pickupLabel: { fontSize: 9, fontWeight: '800', color: colors.caramel, letterSpacing: 0.8 },
   locationText: { fontSize: 13, fontWeight: '800', color: colors.espresso },
-  modeSwitcherRow: {
-    flexDirection: 'row',
+  topCartBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.cream,
-    borderRadius: 12,
-    padding: 2,
-    gap: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  topCartBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: colors.espresso,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  topCartBadgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '900',
   },
   modePill: {
     paddingHorizontal: 8,

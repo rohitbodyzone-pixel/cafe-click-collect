@@ -1,4 +1,4 @@
-﻿import https from 'https';
+import https from 'https';
 
 const BASE_URL = 'https://rohitbodyzone-pixel.github.io/cafe-click-collect';
 const SUPABASE_URL = 'https://fxtzrphbvlzkkghzwsoy.supabase.co';
@@ -143,10 +143,13 @@ async function runProductionVerification() {
 
   // 4. Operational Routes
   const operationRoutes = [
-    { path: '/counter', label: 'Counter POS Terminal & Staff Attendance' },
+    { path: '/counter', label: 'Counter POS Terminal & Live Table Alerts' },
     { path: '/kitchen', label: 'Kitchen Display System (KDS)' },
     { path: '/manager', label: 'Manager Operations & Rush Controls' },
     { path: '/owner', label: 'Owner Console & Branding' },
+    { path: '/admin-menu', label: 'Owner & Manager Menu Management' },
+    { path: '/admin-menu-pdf', label: 'Quick Menu Builder (PDF & Photo Import)' },
+    { path: '/admin-tables', label: 'Dining Tables & QR Code Management' },
     { path: '/super-admin', label: 'Super Admin Platform Console' },
     { path: '/super-admin-features', label: 'Dual-Level Feature Permissions Matrix' },
     { path: '/super-admin-billing', label: 'Platform Economics & SaaS Billing' },

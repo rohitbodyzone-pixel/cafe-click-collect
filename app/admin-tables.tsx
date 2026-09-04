@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Header, Screen } from '@/src/components/UI';
 import { useTables } from '@/src/context/TableContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
-import { colors } from '@/src/theme';
+import { colors, radii } from '@/src/theme';
 
 export default function AdminTables() {
   const { currentRestaurant } = useRestaurant();
@@ -96,9 +96,18 @@ export default function AdminTables() {
       {!!message && <Text style={styles.error}>{message}</Text>}
       {!!error && <Text style={styles.error}>{error}</Text>}
 
-      <Text style={styles.heading}>
-        {loading ? 'Loading…' : `${tables.length} tables for ${currentRestaurant.name}`}
-      </Text>
+      <View style={styles.listHeaderRow}>
+        <Text style={styles.heading}>
+          {loading ? 'Loading…' : `${tables.length} tables for ${currentRestaurant.name}`}
+        </Text>
+        <Pressable
+          style={styles.starterPackBtn}
+          onPress={() => router.push({ pathname: '/admin-table-qr', params: { id: tables[0]?.id } })}
+        >
+          <Ionicons name="albums-outline" size={15} color={colors.white} />
+          <Text style={styles.starterPackBtnText}>20-Table QR Starter Pack</Text>
+        </Pressable>
+      </View>
 
       {tables.map((table) => (
         <Card key={table.id} style={styles.table}>
@@ -192,11 +201,31 @@ const styles = StyleSheet.create({
     marginBottom: 13,
     color: colors.ink,
   },
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 12,
+  },
   heading: {
     color: colors.ink,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
-    marginVertical: 12,
+    flex: 1,
+  },
+  starterPackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.espresso,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.md,
+  },
+  starterPackBtnText: {
+    color: colors.white,
+    fontWeight: '800',
+    fontSize: 11,
   },
   table: {
     flexDirection: 'row',
