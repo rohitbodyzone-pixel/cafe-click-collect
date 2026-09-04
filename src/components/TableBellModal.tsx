@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, triggerHaptic } from '@/src/components/UI';
+import { Button, Card, Tooltip, triggerHaptic } from '@/src/components/UI';
 import {
   ServiceRequestType,
   useServiceRequests,
@@ -35,35 +35,37 @@ export function TableBellButton() {
 
   return (
     <>
-      <Pressable
-        style={[
-          s.floatingBellBtn,
-          activeRequest && s.floatingBellBtnActive,
-        ]}
-        onPress={() => {
-          triggerHaptic('medium');
-          setModalVisible(true);
-        }}
-        accessibilityLabel="Call staff or request service"
-      >
-        <Ionicons
-          name={activeRequest ? 'notifications' : 'notifications-outline'}
-          size={20}
-          color={activeRequest ? colors.white : colors.espresso}
-        />
-        <Text
+      <Tooltip text="Call Staff / Table Service">
+        <Pressable
           style={[
-            s.floatingBellText,
-            activeRequest && s.floatingBellTextActive,
+            s.floatingBellBtn,
+            activeRequest && s.floatingBellBtnActive,
           ]}
+          onPress={() => {
+            triggerHaptic('medium');
+            setModalVisible(true);
+          }}
+          accessibilityLabel="Call staff or request service"
         >
-          {activeRequest
-            ? activeRequest.status === 'acknowledged'
-              ? 'Staff On The Way'
-              : 'Staff Notified'
-            : 'Call Staff'}
-        </Text>
-      </Pressable>
+          <Ionicons
+            name={activeRequest ? 'notifications' : 'notifications-outline'}
+            size={20}
+            color={activeRequest ? colors.white : colors.espresso}
+          />
+          <Text
+            style={[
+              s.floatingBellText,
+              activeRequest && s.floatingBellTextActive,
+            ]}
+          >
+            {activeRequest
+              ? activeRequest.status === 'acknowledged'
+                ? 'Staff On The Way'
+                : 'Staff Notified'
+              : 'Call Staff'}
+          </Text>
+        </Pressable>
+      </Tooltip>
 
       <TableBellModal
         visible={modalVisible}
@@ -182,9 +184,11 @@ export function TableBellModal({
               </View>
               <Text style={s.title}>Call Staff & Table Service</Text>
             </View>
-            <Pressable style={s.closeBtn} onPress={onClose}>
-              <Ionicons name="close" size={20} color={colors.muted} />
-            </Pressable>
+            <Tooltip text="Close Dialog">
+              <Pressable style={s.closeBtn} onPress={onClose} accessibilityLabel="Close Dialog">
+                <Ionicons name="close" size={20} color={colors.muted} />
+              </Pressable>
+            </Tooltip>
           </View>
 
           {/* Active Request Status Banner if already active */}

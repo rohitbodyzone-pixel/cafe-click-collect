@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Header, Card, Button, triggerHaptic } from '@/src/components/UI';
+import { Screen, Header, Card, Button, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { RoleGate } from '@/src/components/RoleGate';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useOrders } from '@/src/context/OrderContext';
@@ -129,13 +129,15 @@ function SuperAdminHealthContent() {
       <Header
         title="Restaurant Health & Alert Center"
         right={
-          <Pressable
-            style={s.refreshHeaderBtn}
-            onPress={onRefresh}
-            accessibilityLabel="Refresh Diagnostics"
-          >
-            <Ionicons name="refresh" size={18} color={colors.espresso} />
-          </Pressable>
+          <Tooltip text="Refresh Diagnostics">
+            <Pressable
+              style={s.refreshHeaderBtn}
+              onPress={onRefresh}
+              accessibilityLabel="Refresh Diagnostics"
+            >
+              <Ionicons name="refresh" size={18} color={colors.espresso} />
+            </Pressable>
+          </Tooltip>
         }
       />
 
@@ -157,10 +159,12 @@ function SuperAdminHealthContent() {
                 Live diagnostic monitoring across {summary.totalRestaurants} active restaurant nodes. Last scan at {lastCheckTime}.
               </Text>
             </View>
-            <Pressable style={s.scanBtn} onPress={onRefresh}>
-              <Ionicons name="pulse-outline" size={14} color={colors.white} />
-              <Text style={s.scanBtnText}>Run Scan</Text>
-            </Pressable>
+            <Tooltip text="Run Diagnostic Scan">
+              <Pressable style={s.scanBtn} onPress={onRefresh}>
+                <Ionicons name="pulse-outline" size={14} color={colors.white} />
+                <Text style={s.scanBtnText}>Run Scan</Text>
+              </Pressable>
+            </Tooltip>
           </View>
 
           {/* KPI Mini-Cards */}

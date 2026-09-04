@@ -17,6 +17,7 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, shadows, spacing, typography } from '@/src/theme';
+import { Tooltip, IconButton } from './Tooltip';
 
 /**
  * Safe Haptic Feedback Helper
@@ -93,15 +94,17 @@ export function Header({
     <View style={[styles.header, style]}>
       <View style={styles.headerSide}>
         {back && (
-          <Pressable
-            onPress={handleBack}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.espresso} />
-          </Pressable>
+          <Tooltip text="Go back">
+            <Pressable
+              onPress={handleBack}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="chevron-back" size={20} color={colors.espresso} />
+            </Pressable>
+          </Tooltip>
         )}
       </View>
       <View style={styles.headerTitleWrap}>
@@ -1079,4 +1082,7 @@ const styles = StyleSheet.create({
     maxWidth: 320,
   },
 });
+
+export { Tooltip, IconButton } from './Tooltip';
+export type { TooltipProps, IconButtonProps, TooltipPosition } from './Tooltip';
 

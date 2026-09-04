@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Header, Screen, triggerHaptic } from '@/src/components/UI';
+import { Card, Header, Screen, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { Order, OrderStatus, useOrders } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useAdminAuth } from '@/src/context/AdminAuthContext';
@@ -163,24 +163,28 @@ export default function AdminKitchenScreen() {
         title="Kitchen Display System (KDS)"
         right={
           <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Pressable
-              style={s.iconBtn}
-              onPress={() => setSoundEnabled((v) => !v)}
-              accessibilityLabel="Toggle sound"
-            >
-              <Ionicons
-                name={soundEnabled ? 'volume-high-outline' : 'volume-mute-outline'}
-                size={18}
-                color={soundEnabled ? colors.espresso : colors.muted}
-              />
-            </Pressable>
-            <Pressable
-              style={s.iconBtn}
-              onPress={() => setShowHandover((v) => !v)}
-              accessibilityLabel="Handover notes"
-            >
-              <Ionicons name="document-text-outline" size={18} color={colors.espresso} />
-            </Pressable>
+            <Tooltip text={soundEnabled ? 'Mute Audio Chimes' : 'Enable Audio Chimes'}>
+              <Pressable
+                style={s.iconBtn}
+                onPress={() => setSoundEnabled((v) => !v)}
+                accessibilityLabel="Toggle sound"
+              >
+                <Ionicons
+                  name={soundEnabled ? 'volume-high-outline' : 'volume-mute-outline'}
+                  size={18}
+                  color={soundEnabled ? colors.espresso : colors.muted}
+                />
+              </Pressable>
+            </Tooltip>
+            <Tooltip text="Shift Handover Notes">
+              <Pressable
+                style={s.iconBtn}
+                onPress={() => setShowHandover((v) => !v)}
+                accessibilityLabel="Handover notes"
+              >
+                <Ionicons name="document-text-outline" size={18} color={colors.espresso} />
+              </Pressable>
+            </Tooltip>
           </View>
         }
       />
@@ -194,14 +198,18 @@ export default function AdminKitchenScreen() {
           <Text style={s.restaurantName}>{currentRestaurant.name}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 6 }}>
-          <Pressable style={s.testOrderBtn} onPress={handleCreateTestOrder}>
-            <Ionicons name="flask-outline" size={14} color={colors.caramel} />
-            <Text style={s.testOrderText}>Test Order</Text>
-          </Pressable>
-          <Pressable style={s.adminHomeBtn} onPress={() => router.replace('/admin')}>
-            <Ionicons name="grid-outline" size={14} color={colors.espresso} />
-            <Text style={s.adminHomeText}>Console</Text>
-          </Pressable>
+          <Tooltip text="Create Staff Test Order">
+            <Pressable style={s.testOrderBtn} onPress={handleCreateTestOrder}>
+              <Ionicons name="flask-outline" size={14} color={colors.caramel} />
+              <Text style={s.testOrderText}>Test Order</Text>
+            </Pressable>
+          </Tooltip>
+          <Tooltip text="Open Operations Console">
+            <Pressable style={s.adminHomeBtn} onPress={() => router.replace('/admin')}>
+              <Ionicons name="grid-outline" size={14} color={colors.espresso} />
+              <Text style={s.adminHomeText}>Console</Text>
+            </Pressable>
+          </Tooltip>
         </View>
       </View>
 
@@ -395,10 +403,12 @@ export default function AdminKitchenScreen() {
 
               {/* Reopen Action for Completed Orders */}
               {order.status === 'Collected' && (
-                <Pressable style={s.reopenBtn} onPress={() => void handleReopenOrder(order.id)}>
-                  <Ionicons name="refresh-outline" size={14} color={colors.caramel} />
-                  <Text style={s.reopenBtnText}>Reopen Order to Preparing</Text>
-                </Pressable>
+                <Tooltip text="Recall & Reopen Order to Preparing">
+                  <Pressable style={s.reopenBtn} onPress={() => void handleReopenOrder(order.id)}>
+                    <Ionicons name="refresh-outline" size={14} color={colors.caramel} />
+                    <Text style={s.reopenBtnText}>Reopen Order to Preparing</Text>
+                  </Pressable>
+                </Tooltip>
               )}
             </Card>
           );

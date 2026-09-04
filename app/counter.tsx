@@ -9,7 +9,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
-import { Screen, Header, Card, Button, triggerHaptic } from '@/src/components/UI';
+import { Screen, Header, Card, Button, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { RoleGate } from '@/src/components/RoleGate';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useAdminAuth } from '@/src/context/AdminAuthContext';
@@ -461,27 +461,31 @@ function CounterPortalContent() {
 
                   {/* Action Buttons */}
                   <View style={s.tableOrderActionRow}>
-                    <Pressable
-                      style={s.rejectBtn}
-                      disabled={approvingOrderId === to.id}
-                      onPress={() => handleRejectTableOrder(to.id)}
-                    >
-                      <Text style={s.rejectBtnText}>Reject / Cancel</Text>
-                    </Pressable>
-                    <Pressable
-                      style={s.approveBtn}
-                      disabled={approvingOrderId === to.id}
-                      onPress={() => handleApproveTableOrder(to.id)}
-                    >
-                      {approvingOrderId === to.id ? (
-                        <ActivityIndicator size="small" color={colors.white} />
-                      ) : (
-                        <>
-                          <Ionicons name="checkmark-circle" size={16} color={colors.white} />
-                          <Text style={s.approveBtnText}>APPROVE ORDER</Text>
-                        </>
-                      )}
-                    </Pressable>
+                    <Tooltip text="Reject / Cancel Order">
+                      <Pressable
+                        style={s.rejectBtn}
+                        disabled={approvingOrderId === to.id}
+                        onPress={() => handleRejectTableOrder(to.id)}
+                      >
+                        <Text style={s.rejectBtnText}>Reject / Cancel</Text>
+                      </Pressable>
+                    </Tooltip>
+                    <Tooltip text="Approve & Send to Kitchen KDS">
+                      <Pressable
+                        style={s.approveBtn}
+                        disabled={approvingOrderId === to.id}
+                        onPress={() => handleApproveTableOrder(to.id)}
+                      >
+                        {approvingOrderId === to.id ? (
+                          <ActivityIndicator size="small" color={colors.white} />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark-circle" size={16} color={colors.white} />
+                            <Text style={s.approveBtnText}>APPROVE ORDER</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    </Tooltip>
                   </View>
                 </Card>
               );
@@ -516,15 +520,19 @@ function CounterPortalContent() {
               {clockingBusy ? (
                 <ActivityIndicator size="small" color={colors.espresso} />
               ) : isClockedIn ? (
-                <Pressable style={s.clockOutBtn} onPress={handleClockOut}>
-                  <Ionicons name="log-out-outline" size={14} color={colors.white} />
-                  <Text style={s.clockOutBtnText}>CLOCK OUT</Text>
-                </Pressable>
+                <Tooltip text="End Shift & Clock Out">
+                  <Pressable style={s.clockOutBtn} onPress={handleClockOut}>
+                    <Ionicons name="log-out-outline" size={14} color={colors.white} />
+                    <Text style={s.clockOutBtnText}>CLOCK OUT</Text>
+                  </Pressable>
+                </Tooltip>
               ) : (
-                <Pressable style={s.clockInBtn} onPress={handleClockIn}>
-                  <Ionicons name="log-in-outline" size={14} color={colors.white} />
-                  <Text style={s.clockInBtnText}>CLOCK IN</Text>
-                </Pressable>
+                <Tooltip text="Start Shift & Clock In">
+                  <Pressable style={s.clockInBtn} onPress={handleClockIn}>
+                    <Ionicons name="log-in-outline" size={14} color={colors.white} />
+                    <Text style={s.clockInBtnText}>CLOCK IN</Text>
+                  </Pressable>
+                </Tooltip>
               )}
             </View>
           </View>

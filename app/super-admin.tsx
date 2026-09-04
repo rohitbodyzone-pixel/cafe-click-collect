@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Header, Screen, triggerHaptic } from '@/src/components/UI';
+import { Button, Card, Header, Screen, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useAdminAuth } from '@/src/context/AdminAuthContext';
 import { useOrders } from '@/src/context/OrderContext';
@@ -528,9 +528,11 @@ function SuperAdminContent() {
           placeholderTextColor={colors.muted}
         />
         {!!search && (
-          <Pressable onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={colors.muted} />
-          </Pressable>
+          <Tooltip text="Clear Search">
+            <Pressable onPress={() => setSearch('')} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={18} color={colors.muted} />
+            </Pressable>
+          </Tooltip>
         )}
       </View>
 
@@ -586,49 +588,57 @@ function SuperAdminContent() {
               </View>
 
               <View style={s.cardActions}>
-                <Pressable
-                  style={s.manageBtn}
-                  onPress={() => handleSwitchToRestaurant(restaurant)}
-                >
-                  <Ionicons name="settings-outline" size={14} color={colors.espresso} />
-                  <Text style={s.manageBtnText}>Manage Admin →</Text>
-                </Pressable>
-                <Pressable
-                  style={s.analyticsBtn}
-                  onPress={() => {
-                    setCurrentRestaurant(restaurant);
-                    router.push({
-                      pathname: '/admin-health',
-                      params: { restaurantId: restaurant.id },
-                    });
-                  }}
-                >
-                  <Ionicons name="pulse-outline" size={14} color={colors.espresso} />
-                  <Text style={s.analyticsBtnText}>Health</Text>
-                </Pressable>
-                <Pressable
-                  style={s.analyticsBtn}
-                  onPress={() => {
-                    setCurrentRestaurant(restaurant);
-                    router.push('/admin-analytics');
-                  }}
-                >
-                  <Ionicons name="stats-chart-outline" size={14} color={colors.espresso} />
-                  <Text style={s.analyticsBtnText}>Analytics</Text>
-                </Pressable>
-                <Pressable
-                  style={s.viewPublicBtn}
-                  onPress={() => {
-                    setCurrentRestaurant(restaurant);
-                    router.replace({
-                      pathname: '/',
-                      params: { restaurant: restaurant.slug },
-                    });
-                  }}
-                >
-                  <Ionicons name="eye-outline" size={14} color={colors.coffee} />
-                  <Text style={s.viewPublicText}>Menu</Text>
-                </Pressable>
+                <Tooltip text="Open Operations Console">
+                  <Pressable
+                    style={s.manageBtn}
+                    onPress={() => handleSwitchToRestaurant(restaurant)}
+                  >
+                    <Ionicons name="settings-outline" size={14} color={colors.espresso} />
+                    <Text style={s.manageBtnText}>Manage Admin →</Text>
+                  </Pressable>
+                </Tooltip>
+                <Tooltip text="Diagnostics & Health">
+                  <Pressable
+                    style={s.analyticsBtn}
+                    onPress={() => {
+                      setCurrentRestaurant(restaurant);
+                      router.push({
+                        pathname: '/admin-health',
+                        params: { restaurantId: restaurant.id },
+                      });
+                    }}
+                  >
+                    <Ionicons name="pulse-outline" size={14} color={colors.espresso} />
+                    <Text style={s.analyticsBtnText}>Health</Text>
+                  </Pressable>
+                </Tooltip>
+                <Tooltip text="Orders & Sales Analytics">
+                  <Pressable
+                    style={s.analyticsBtn}
+                    onPress={() => {
+                      setCurrentRestaurant(restaurant);
+                      router.push('/admin-analytics');
+                    }}
+                  >
+                    <Ionicons name="stats-chart-outline" size={14} color={colors.espresso} />
+                    <Text style={s.analyticsBtnText}>Analytics</Text>
+                  </Pressable>
+                </Tooltip>
+                <Tooltip text="View Customer Menu">
+                  <Pressable
+                    style={s.viewPublicBtn}
+                    onPress={() => {
+                      setCurrentRestaurant(restaurant);
+                      router.replace({
+                        pathname: '/',
+                        params: { restaurant: restaurant.slug },
+                      });
+                    }}
+                  >
+                    <Ionicons name="eye-outline" size={14} color={colors.coffee} />
+                    <Text style={s.viewPublicText}>Menu</Text>
+                  </Pressable>
+                </Tooltip>
               </View>
             </Card>
           );

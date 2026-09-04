@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Header, Screen, Card, triggerHaptic } from '@/src/components/UI';
+import { Button, Header, Screen, Card, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { useOrders, OrderStatus } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useCustomerExperience, QueuePositionInfo, ReviewShieldResult } from '@/src/context/CustomerExperienceContext';
@@ -268,61 +268,73 @@ export default function OrderStatusScreen() {
           </Text>
 
           <View style={s.serviceButtonsRow}>
-            <Pressable
-              disabled={busyService || isCoolingDown('call_staff')}
-              style={[
-                s.serviceBtn,
-                isCoolingDown('call_staff') && s.serviceBtnDisabled,
-              ]}
-              onPress={() => void handleTableService('call_staff')}
-            >
-              <Ionicons name="notifications-outline" size={16} color={colors.espresso} />
-              <Text style={s.serviceBtnText}>
-                {isCoolingDown('call_staff') ? 'Sent' : 'Call Staff'}
-              </Text>
-            </Pressable>
+            <Tooltip text="Notify Waitstaff">
+              <Pressable
+                disabled={busyService || isCoolingDown('call_staff')}
+                style={[
+                  s.serviceBtn,
+                  isCoolingDown('call_staff') && s.serviceBtnDisabled,
+                ]}
+                onPress={() => void handleTableService('call_staff')}
+                accessibilityLabel="Call Staff"
+              >
+                <Ionicons name="notifications-outline" size={16} color={colors.espresso} />
+                <Text style={s.serviceBtnText}>
+                  {isCoolingDown('call_staff') ? 'Sent' : 'Call Staff'}
+                </Text>
+              </Pressable>
+            </Tooltip>
 
-            <Pressable
-              disabled={busyService || isCoolingDown('water')}
-              style={[
-                s.serviceBtn,
-                isCoolingDown('water') && s.serviceBtnDisabled,
-              ]}
-              onPress={() => void handleTableService('water')}
-            >
-              <Ionicons name="water-outline" size={16} color={colors.espresso} />
-              <Text style={s.serviceBtnText}>
-                {isCoolingDown('water') ? 'Sent' : 'Water'}
-              </Text>
-            </Pressable>
+            <Tooltip text="Request Table Water">
+              <Pressable
+                disabled={busyService || isCoolingDown('water')}
+                style={[
+                  s.serviceBtn,
+                  isCoolingDown('water') && s.serviceBtnDisabled,
+                ]}
+                onPress={() => void handleTableService('water')}
+                accessibilityLabel="Water Please"
+              >
+                <Ionicons name="water-outline" size={16} color={colors.espresso} />
+                <Text style={s.serviceBtnText}>
+                  {isCoolingDown('water') ? 'Sent' : 'Water'}
+                </Text>
+              </Pressable>
+            </Tooltip>
 
-            <Pressable
-              disabled={busyService || isCoolingDown('need_help')}
-              style={[
-                s.serviceBtn,
-                isCoolingDown('need_help') && s.serviceBtnDisabled,
-              ]}
-              onPress={() => void handleTableService('need_help')}
-            >
-              <Ionicons name="help-circle-outline" size={16} color={colors.espresso} />
-              <Text style={s.serviceBtnText}>
-                {isCoolingDown('need_help') ? 'Sent' : 'Need Help'}
-              </Text>
-            </Pressable>
+            <Tooltip text="Ask Question or Help">
+              <Pressable
+                disabled={busyService || isCoolingDown('need_help')}
+                style={[
+                  s.serviceBtn,
+                  isCoolingDown('need_help') && s.serviceBtnDisabled,
+                ]}
+                onPress={() => void handleTableService('need_help')}
+                accessibilityLabel="Need Help"
+              >
+                <Ionicons name="help-circle-outline" size={16} color={colors.espresso} />
+                <Text style={s.serviceBtnText}>
+                  {isCoolingDown('need_help') ? 'Sent' : 'Need Help'}
+                </Text>
+              </Pressable>
+            </Tooltip>
 
-            <Pressable
-              disabled={busyService || isCoolingDown('bill')}
-              style={[
-                s.serviceBtn,
-                isCoolingDown('bill') && s.serviceBtnDisabled,
-              ]}
-              onPress={() => void handleTableService('bill')}
-            >
-              <Ionicons name="receipt-outline" size={16} color={colors.espresso} />
-              <Text style={s.serviceBtnText}>
-                {isCoolingDown('bill') ? 'Sent' : 'Bill'}
-              </Text>
-            </Pressable>
+            <Tooltip text="Request Check & Bill">
+              <Pressable
+                disabled={busyService || isCoolingDown('bill')}
+                style={[
+                  s.serviceBtn,
+                  isCoolingDown('bill') && s.serviceBtnDisabled,
+                ]}
+                onPress={() => void handleTableService('bill')}
+                accessibilityLabel="Ready to Pay / Bill"
+              >
+                <Ionicons name="receipt-outline" size={16} color={colors.espresso} />
+                <Text style={s.serviceBtnText}>
+                  {isCoolingDown('bill') ? 'Sent' : 'Bill'}
+                </Text>
+              </Pressable>
+            </Tooltip>
           </View>
 
           {!!serviceMessage && (
@@ -349,17 +361,19 @@ export default function OrderStatusScreen() {
           {/* Star Rating Row */}
           <View style={s.starsRow}>
             {[1, 2, 3, 4, 5].map((star) => (
-              <Pressable
-                key={star}
-                onPress={() => void handleRatingSelect(star)}
-                style={s.starBtn}
-              >
-                <Ionicons
-                  name={star <= selectedRating ? 'star' : 'star-outline'}
-                  size={32}
-                  color={star <= selectedRating ? '#F5A623' : colors.line}
-                />
-              </Pressable>
+              <Tooltip key={star} text={`${star} Star${star > 1 ? 's' : ''}`}>
+                <Pressable
+                  onPress={() => void handleRatingSelect(star)}
+                  style={s.starBtn}
+                  accessibilityLabel={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                >
+                  <Ionicons
+                    name={star <= selectedRating ? 'star' : 'star-outline'}
+                    size={32}
+                    color={star <= selectedRating ? '#F5A623' : colors.line}
+                  />
+                </Pressable>
+              </Tooltip>
             ))}
           </View>
 

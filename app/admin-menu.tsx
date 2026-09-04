@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Button, Card, Header, Screen, triggerHaptic } from '@/src/components/UI';
+import { Button, Card, Header, Screen, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { RoleGate } from '@/src/components/RoleGate';
 import { useProducts } from '@/src/context/ProductContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
@@ -303,50 +303,58 @@ function AdminMenuContent() {
         right={
           <View style={s.headerRightRow}>
             {/* Undo Button */}
-            <Pressable
-              style={[s.headerToolBtn, !canUndo && s.headerToolBtnDisabled]}
-              onPress={() => void handleUndo()}
-              disabled={!canUndo}
-              accessibilityLabel="Undo (Ctrl+Z)"
-            >
-              <Ionicons
-                name="arrow-undo-outline"
-                size={16}
-                color={canUndo ? colors.espresso : colors.muted}
-              />
-            </Pressable>
+            <Tooltip text="Undo (Ctrl+Z)">
+              <Pressable
+                style={[s.headerToolBtn, !canUndo && s.headerToolBtnDisabled]}
+                onPress={() => void handleUndo()}
+                disabled={!canUndo}
+                accessibilityLabel="Undo (Ctrl+Z)"
+              >
+                <Ionicons
+                  name="arrow-undo-outline"
+                  size={16}
+                  color={canUndo ? colors.espresso : colors.muted}
+                />
+              </Pressable>
+            </Tooltip>
 
             {/* Redo Button */}
-            <Pressable
-              style={[s.headerToolBtn, !canRedo && s.headerToolBtnDisabled]}
-              onPress={() => void handleRedo()}
-              disabled={!canRedo}
-              accessibilityLabel="Redo (Ctrl+Y)"
-            >
-              <Ionicons
-                name="arrow-redo-outline"
-                size={16}
-                color={canRedo ? colors.espresso : colors.muted}
-              />
-            </Pressable>
+            <Tooltip text="Redo (Ctrl+Y)">
+              <Pressable
+                style={[s.headerToolBtn, !canRedo && s.headerToolBtnDisabled]}
+                onPress={() => void handleRedo()}
+                disabled={!canRedo}
+                accessibilityLabel="Redo (Ctrl+Y)"
+              >
+                <Ionicons
+                  name="arrow-redo-outline"
+                  size={16}
+                  color={canRedo ? colors.espresso : colors.muted}
+                />
+              </Pressable>
+            </Tooltip>
 
             {/* Version History Button */}
-            <Pressable
-              style={s.headerToolBtn}
-              onPress={handleOpenHistory}
-              accessibilityLabel="Version History"
-            >
-              <Ionicons name="time-outline" size={16} color={colors.espresso} />
-            </Pressable>
+            <Tooltip text="Revision History">
+              <Pressable
+                style={s.headerToolBtn}
+                onPress={handleOpenHistory}
+                accessibilityLabel="Version History"
+              >
+                <Ionicons name="time-outline" size={16} color={colors.espresso} />
+              </Pressable>
+            </Tooltip>
 
             {/* Publish Revision Button */}
-            <Pressable
-              style={s.headerPublishBtn}
-              onPress={handlePublishSnapshot}
-              accessibilityLabel="Publish Snapshot"
-            >
-              <Ionicons name="cloud-upload-outline" size={16} color={colors.white} />
-            </Pressable>
+            <Tooltip text="Publish Snapshot">
+              <Pressable
+                style={s.headerPublishBtn}
+                onPress={handlePublishSnapshot}
+                accessibilityLabel="Publish Snapshot"
+              >
+                <Ionicons name="cloud-upload-outline" size={16} color={colors.white} />
+              </Pressable>
+            </Tooltip>
           </View>
         }
       />
@@ -365,34 +373,40 @@ function AdminMenuContent() {
           </View>
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
             {/* Customer Live Preview Button */}
-            <Pressable
-              style={s.previewBtn}
-              onPress={() => {
-                triggerHaptic('light');
-                setShowPreviewModal(true);
-              }}
-              accessibilityLabel="Preview Customer Menu"
-            >
-              <Ionicons name="eye-outline" size={14} color={colors.white} />
-              <Text style={s.previewBtnText}>Preview</Text>
-            </Pressable>
+            <Tooltip text="Preview Customer Menu">
+              <Pressable
+                style={s.previewBtn}
+                onPress={() => {
+                  triggerHaptic('light');
+                  setShowPreviewModal(true);
+                }}
+                accessibilityLabel="Preview Customer Menu"
+              >
+                <Ionicons name="eye-outline" size={14} color={colors.white} />
+                <Text style={s.previewBtnText}>Preview</Text>
+              </Pressable>
+            </Tooltip>
 
-            <Pressable
-              style={s.pdfImportBtn}
-              onPress={() => router.push('/admin-menu-pdf')}
-              accessibilityLabel="Upload Menu PDF"
-            >
-              <Ionicons name="document-text-outline" size={14} color={colors.caramel} />
-              <Text style={s.pdfImportText}>PDF</Text>
-            </Pressable>
+            <Tooltip text="Upload Menu PDF (Quick Builder)">
+              <Pressable
+                style={s.pdfImportBtn}
+                onPress={() => router.push('/admin-menu-pdf')}
+                accessibilityLabel="Upload Menu PDF"
+              >
+                <Ionicons name="document-text-outline" size={14} color={colors.caramel} />
+                <Text style={s.pdfImportText}>PDF</Text>
+              </Pressable>
+            </Tooltip>
 
-            <Pressable
-              style={s.addBtn}
-              onPress={() => router.push('/admin-product')}
-              accessibilityLabel="Add new product"
-            >
-              <Ionicons name="add" size={18} color={colors.white} />
-            </Pressable>
+            <Tooltip text="Add New Menu Item">
+              <Pressable
+                style={s.addBtn}
+                onPress={() => router.push('/admin-product')}
+                accessibilityLabel="Add new product"
+              >
+                <Ionicons name="add" size={18} color={colors.white} />
+              </Pressable>
+            </Tooltip>
           </View>
         </View>
 
@@ -484,34 +498,40 @@ function AdminMenuContent() {
             </View>
 
             <View style={s.actions}>
-              <Pressable
-                style={s.action}
-                onPress={() => void handleDuplicate(product)}
-                accessibilityLabel="Duplicate item"
-              >
-                <Ionicons name="copy-outline" size={16} color={colors.espresso} />
-              </Pressable>
-              <Pressable
-                style={s.action}
-                onPress={() =>
-                  router.push({
-                    pathname: '/admin-product',
-                    params: { id: product.id },
-                  })
-                }
-                accessibilityLabel="Edit item"
-              >
-                <Ionicons name="pencil-outline" size={16} color={colors.espresso} />
-              </Pressable>
-              <Pressable
-                style={s.action}
-                onPress={() =>
-                  setPendingDelete({ id: product.id, name: product.name })
-                }
-                accessibilityLabel="Delete item"
-              >
-                <Ionicons name="trash-outline" size={16} color={colors.danger} />
-              </Pressable>
+              <Tooltip text="Duplicate Item">
+                <Pressable
+                  style={s.action}
+                  onPress={() => void handleDuplicate(product)}
+                  accessibilityLabel="Duplicate item"
+                >
+                  <Ionicons name="copy-outline" size={16} color={colors.espresso} />
+                </Pressable>
+              </Tooltip>
+              <Tooltip text="Edit Item Details & Price">
+                <Pressable
+                  style={s.action}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/admin-product',
+                      params: { id: product.id },
+                    })
+                  }
+                  accessibilityLabel="Edit item"
+                >
+                  <Ionicons name="pencil-outline" size={16} color={colors.espresso} />
+                </Pressable>
+              </Tooltip>
+              <Tooltip text="Delete Item">
+                <Pressable
+                  style={s.action}
+                  onPress={() =>
+                    setPendingDelete({ id: product.id, name: product.name })
+                  }
+                  accessibilityLabel="Delete item"
+                >
+                  <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                </Pressable>
+              </Tooltip>
             </View>
           </Card>
         ))}

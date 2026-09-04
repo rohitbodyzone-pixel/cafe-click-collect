@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Screen } from '@/src/components/UI';
+import { Card, Screen, Tooltip } from '@/src/components/UI';
 import { Restaurant, useRestaurant } from '@/src/context/RestaurantContext';
 import { useOrders } from '@/src/context/OrderContext';
 import { useLoyalty } from '@/src/context/LoyaltyContext';
@@ -138,17 +138,20 @@ export default function CustomerMarketplaceHome() {
           </View>
         </View>
 
-        <Pressable
-          style={s.topCartBtn}
-          onPress={() => router.push('/cart')}
-        >
-          <Ionicons name="bag-handle" size={18} color={colors.espresso} />
-          {cartCount > 0 && (
-            <View style={s.topCartBadge}>
-              <Text style={s.topCartBadgeText}>{cartCount}</Text>
-            </View>
-          )}
-        </Pressable>
+        <Tooltip text="View Shopping Cart">
+          <Pressable
+            style={s.topCartBtn}
+            onPress={() => router.push('/cart')}
+            accessibilityLabel="View Shopping Cart"
+          >
+            <Ionicons name="bag-handle" size={18} color={colors.espresso} />
+            {cartCount > 0 && (
+              <View style={s.topCartBadge}>
+                <Text style={s.topCartBadgeText}>{cartCount}</Text>
+              </View>
+            )}
+          </Pressable>
+        </Tooltip>
       </View>
 
       {/* 2. Global Customer Search Bar */}
@@ -162,9 +165,11 @@ export default function CustomerMarketplaceHome() {
           onChangeText={setSearch}
         />
         {search.length > 0 && (
-          <Pressable onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={16} color={colors.muted} />
-          </Pressable>
+          <Tooltip text="Clear Search">
+            <Pressable onPress={() => setSearch('')} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={16} color={colors.muted} />
+            </Pressable>
+          </Tooltip>
         )}
       </View>
 

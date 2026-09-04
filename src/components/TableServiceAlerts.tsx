@@ -13,7 +13,7 @@ import {
   SERVICE_REQUEST_LABELS,
 } from '@/src/context/ServiceRequestContext';
 import { colors, radii, shadows } from '@/src/theme';
-import { triggerHaptic } from '@/src/components/UI';
+import { triggerHaptic, Tooltip } from '@/src/components/UI';
 
 export function TableServiceAlerts({
   showPanel = true,
@@ -127,21 +127,25 @@ export function TableServiceAlerts({
         {/* Action Buttons */}
         <View style={s.actionsRow}>
           {topRequest.status === 'pending' && (
-            <Pressable
-              style={s.ackBtn}
-              onPress={() => void handleAcknowledge(topRequest.id)}
-            >
-              <Text style={s.ackBtnText}>Acknowledge</Text>
-            </Pressable>
+            <Tooltip text="Acknowledge Call">
+              <Pressable
+                style={s.ackBtn}
+                onPress={() => void handleAcknowledge(topRequest.id)}
+              >
+                <Text style={s.ackBtnText}>Acknowledge</Text>
+              </Pressable>
+            </Tooltip>
           )}
 
-          <Pressable
-            style={s.doneBtn}
-            onPress={() => void handleComplete(topRequest.id)}
-          >
-            <Ionicons name="checkmark" size={14} color={colors.white} />
-            <Text style={s.doneBtnText}>Complete</Text>
-          </Pressable>
+          <Tooltip text="Mark Completed">
+            <Pressable
+              style={s.doneBtn}
+              onPress={() => void handleComplete(topRequest.id)}
+            >
+              <Ionicons name="checkmark" size={14} color={colors.white} />
+              <Text style={s.doneBtnText}>Complete</Text>
+            </Pressable>
+          </Tooltip>
         </View>
       </View>
 

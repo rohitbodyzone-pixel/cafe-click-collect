@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Card, Header } from '@/src/components/UI';
+import { Screen, Card, Header, Tooltip } from '@/src/components/UI';
 import { money } from '@/src/data/products';
 import { useOrders } from '@/src/context/OrderContext';
 import { useProducts } from '@/src/context/ProductContext';
@@ -73,9 +73,15 @@ export default function DedicatedMenuScreen() {
       <Header
         title={currentRestaurant.name}
         right={
-          <Pressable style={s.topBtn} onPress={() => router.push('/restaurants')}>
-            <Ionicons name="storefront-outline" size={18} color={colors.espresso} />
-          </Pressable>
+          <Tooltip text="Explore All Cafes">
+            <Pressable
+              style={s.topBtn}
+              onPress={() => router.push('/restaurants')}
+              accessibilityLabel="Explore All Cafes"
+            >
+              <Ionicons name="storefront-outline" size={18} color={colors.espresso} />
+            </Pressable>
+          </Tooltip>
         }
       />
 

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Header, Card, Button, triggerHaptic } from '@/src/components/UI';
+import { Screen, Header, Card, Button, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { RoleGate } from '@/src/components/RoleGate';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { useOrders } from '@/src/context/OrderContext';
@@ -107,9 +107,11 @@ function AdminHealthContent() {
       <Header
         title="Restaurant Diagnostics"
         right={
-          <Pressable style={s.refreshHeaderBtn} onPress={onRefresh} accessibilityLabel="Refresh">
-            <Ionicons name="refresh" size={18} color={colors.espresso} />
-          </Pressable>
+          <Tooltip text="Refresh Diagnostics">
+            <Pressable style={s.refreshHeaderBtn} onPress={onRefresh} accessibilityLabel="Refresh">
+              <Ionicons name="refresh" size={18} color={colors.espresso} />
+            </Pressable>
+          </Tooltip>
         }
       />
 

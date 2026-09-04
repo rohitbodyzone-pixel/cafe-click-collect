@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Header, Screen, triggerHaptic } from '@/src/components/UI';
+import { Button, Card, Header, Screen, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { money } from '@/src/data/products';
 import { useOrders } from '@/src/context/OrderContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
@@ -77,16 +77,19 @@ export default function Cart() {
                 <Text style={s.bannerTable}>Seated at {table.name}</Text>
               )}
             </View>
-            <Pressable
-              style={s.clearBtn}
-              onPress={() => {
-                triggerHaptic('medium');
-                clearCart();
-              }}
-            >
-              <Ionicons name="trash-outline" size={14} color={colors.danger} />
-              <Text style={s.clearBtnText}>Clear</Text>
-            </Pressable>
+            <Tooltip text="Empty All Items">
+              <Pressable
+                style={s.clearBtn}
+                onPress={() => {
+                  triggerHaptic('medium');
+                  clearCart();
+                }}
+                accessibilityLabel="Empty All Items"
+              >
+                <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                <Text style={s.clearBtnText}>Clear</Text>
+              </Pressable>
+            </Tooltip>
           </View>
 
           {cart.map((i) => (
@@ -111,27 +114,31 @@ export default function Cart() {
                 <Text style={s.price}>{money(i.unitPrice * i.quantity)}</Text>
               </View>
               <View style={s.stepper}>
-                <Pressable
-                  style={s.stepBtn}
-                  onPress={() => {
-                    triggerHaptic('light');
-                    setQuantity(i.cartKey, i.quantity - 1);
-                  }}
-                  accessibilityLabel="Decrease quantity"
-                >
-                  <Text style={s.stepBtnText}>−</Text>
-                </Pressable>
+                <Tooltip text="Decrease Quantity">
+                  <Pressable
+                    style={s.stepBtn}
+                    onPress={() => {
+                      triggerHaptic('light');
+                      setQuantity(i.cartKey, i.quantity - 1);
+                    }}
+                    accessibilityLabel="Decrease quantity"
+                  >
+                    <Text style={s.stepBtnText}>−</Text>
+                  </Pressable>
+                </Tooltip>
                 <Text style={s.quantityText}>{i.quantity}</Text>
-                <Pressable
-                  style={s.stepBtn}
-                  onPress={() => {
-                    triggerHaptic('light');
-                    setQuantity(i.cartKey, i.quantity + 1);
-                  }}
-                  accessibilityLabel="Increase quantity"
-                >
-                  <Text style={s.stepBtnText}>+</Text>
-                </Pressable>
+                <Tooltip text="Increase Quantity">
+                  <Pressable
+                    style={s.stepBtn}
+                    onPress={() => {
+                      triggerHaptic('light');
+                      setQuantity(i.cartKey, i.quantity + 1);
+                    }}
+                    accessibilityLabel="Increase quantity"
+                  >
+                    <Text style={s.stepBtnText}>+</Text>
+                  </Pressable>
+                </Tooltip>
               </View>
             </Card>
           ))}

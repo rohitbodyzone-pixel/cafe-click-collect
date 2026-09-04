@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Header, Screen } from '@/src/components/UI';
+import { Button, Card, Header, Screen, Tooltip } from '@/src/components/UI';
 import { useTables } from '@/src/context/TableContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
 import { colors, radii } from '@/src/theme';
@@ -100,13 +100,15 @@ export default function AdminTables() {
         <Text style={styles.heading}>
           {loading ? 'Loading…' : `${tables.length} tables for ${currentRestaurant.name}`}
         </Text>
-        <Pressable
-          style={styles.starterPackBtn}
-          onPress={() => router.push({ pathname: '/admin-table-qr', params: { id: tables[0]?.id } })}
-        >
-          <Ionicons name="albums-outline" size={15} color={colors.white} />
-          <Text style={styles.starterPackBtnText}>20-Table QR Starter Pack</Text>
-        </Pressable>
+        <Tooltip text="Generate 20-Table QR Starter Pack">
+          <Pressable
+            style={styles.starterPackBtn}
+            onPress={() => router.push({ pathname: '/admin-table-qr', params: { id: tables[0]?.id } })}
+          >
+            <Ionicons name="albums-outline" size={15} color={colors.white} />
+            <Text style={styles.starterPackBtnText}>20-Table QR Starter Pack</Text>
+          </Pressable>
+        </Tooltip>
       </View>
 
       {tables.map((table) => (
@@ -117,41 +119,47 @@ export default function AdminTables() {
               /r/{currentRestaurant.slug}/table/{table.code}
             </Text>
           </View>
-          <Pressable
-            style={styles.icon}
-            onPress={() => void updateTable(table.id, { active: !table.active })}
-            accessibilityLabel={table.active ? 'Disable table' : 'Enable table'}
-          >
-            <Ionicons
-              name={table.active ? 'checkmark-circle' : 'close-circle-outline'}
-              size={23}
-              color={table.active ? colors.green : colors.muted}
-            />
-          </Pressable>
-          <Pressable
-            style={styles.icon}
-            onPress={() =>
-              router.push({ pathname: '/admin-table-qr', params: { id: table.id } })
-            }
-            accessibilityLabel="View QR code"
-          >
-            <Ionicons
-              name="qr-code-outline"
-              size={22}
-              color={colors.espresso}
-            />
-          </Pressable>
-          <Pressable
-            style={styles.icon}
-            onPress={() => handleRemove(table.id, table.name)}
-            accessibilityLabel="Delete table"
-          >
-            <Ionicons
-              name="trash-outline"
-              size={21}
-              color={colors.danger}
-            />
-          </Pressable>
+          <Tooltip text={table.active ? 'Deactivate Table' : 'Activate Table'}>
+            <Pressable
+              style={styles.icon}
+              onPress={() => void updateTable(table.id, { active: !table.active })}
+              accessibilityLabel={table.active ? 'Disable table' : 'Enable table'}
+            >
+              <Ionicons
+                name={table.active ? 'checkmark-circle' : 'close-circle-outline'}
+                size={23}
+                color={table.active ? colors.green : colors.muted}
+              />
+            </Pressable>
+          </Tooltip>
+          <Tooltip text="View & Print Table QR Code">
+            <Pressable
+              style={styles.icon}
+              onPress={() =>
+                router.push({ pathname: '/admin-table-qr', params: { id: table.id } })
+              }
+              accessibilityLabel="View QR code"
+            >
+              <Ionicons
+                name="qr-code-outline"
+                size={22}
+                color={colors.espresso}
+              />
+            </Pressable>
+          </Tooltip>
+          <Tooltip text="Delete Table">
+            <Pressable
+              style={styles.icon}
+              onPress={() => handleRemove(table.id, table.name)}
+              accessibilityLabel="Delete table"
+            >
+              <Ionicons
+                name="trash-outline"
+                size={21}
+                color={colors.danger}
+              />
+            </Pressable>
+          </Tooltip>
         </Card>
       ))}
     </Screen>
