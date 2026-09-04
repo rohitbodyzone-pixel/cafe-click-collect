@@ -1,14 +1,27 @@
-import { Pressable, StyleSheet, Switch, Text, View, ScrollView, Modal, TextInput } from 'react-native';
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+  ScrollView,
+  Modal,
+  TextInput,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Button, Card, Header, Screen, triggerHaptic } from '@/src/components/UI';
 import { RoleGate } from '@/src/components/RoleGate';
 import { useProducts } from '@/src/context/ProductContext';
 import { useRestaurant } from '@/src/context/RestaurantContext';
-import { money } from '@/src/data/products';
+import { useAdminAuth } from '@/src/context/AdminAuthContext';
+import { money, Product } from '@/src/data/products';
 import { colors, radii, shadows } from '@/src/theme';
 import { ProductImage } from '@/src/components/ProductImage';
+import { RestaurantCoverImage, RestaurantLogoImage } from '@/src/components/RestaurantImage';
 import { supabase } from '@/src/lib/supabase';
 
 export default function AdminMenu() {
@@ -22,9 +35,31 @@ export default function AdminMenu() {
   );
 }
 
+type MenuRevision = {
+  id: string;
+  version_number: number;
+  title: string;
+  snapshot: Product[];
+  published_by: string;
+  published_at: string;
+  created_at: string;
+};
+
 function AdminMenuContent() {
   const { currentRestaurant } = useRestaurant();
-  const { products, loading, error, toggleSoldOut, deleteProduct, addProduct, refresh } = useProducts();
+  const { staff } = useAdminAuth();
+  const {
+    products,
+    loading,
+    error,
+    toggleSoldOut,
+    deleteProduct,
+    addProduct,
+    updateProduct,
+    refresh,
+  } = useProducts();
+
+  // Dialog & Modal states
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string }>();
   const [selectedCat, setSelectedCat] = useState<string>('All');
   const [draftSuccess, setDraftSuccess] = useState('');
@@ -32,9 +67,92 @@ function AdminMenuContent() {
   const [newCatName, setNewCatName] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
 
+  // Feature 2A: Customer Preview Modal
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'pickup' | 'table'>('pickup');
+  const [previewCat, setPreviewCat] = useState<string>('All');
+
+  // Feature 2B & 2C: Undo / Redo State Stack
+  const [historyStack, setHistoryStack] = useState<Product[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [isUndoingOrRedoing, setIsUndoingOrRedoing] = useState(false);
+
+  // Feature 2D: Version History & Restore Modal
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [revisions, setRevisions] = useState<MenuRevision[]>([]);
+  const [loadingRevisions, setLoadingRevisions] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<MenuRevision | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  // Initialize history stack when products first load
+  useEffect(() => {
+    if (products.length > 0 && historyStack.length === 0 && !isUndoingOrRedoing) {
+      setHistoryStack([products]);
+      setHistoryIndex(0);
+    }
+  }, [products, historyStack.length, isUndoingOrRedoing]);
+
+  // Push new state to history stack on product changes
+  const pushToHistory = useCallback((newProducts: Product[]) => {
+    setHistoryStack((prev) => {
+      const truncated = prev.slice(0, historyIndex + 1);
+      return [...truncated, newProducts];
+    });
+    setHistoryIndex((prev) => prev + 1);
+  }, [historyIndex]);
+
+  // Undo action
+  const handleUndo = useCallback(async () => {
+    if (historyIndex <= 0) return;
+    triggerHaptic('medium');
+    setIsUndoingOrRedoing(true);
+    const prevIndex = historyIndex - 1;
+    const targetState = historyStack[prevIndex];
+    setHistoryIndex(prevIndex);
+
+    setDraftSuccess('↶ Undone previous menu change.');
+    setTimeout(() => setDraftSuccess(''), 3000);
+    setIsUndoingOrRedoing(false);
+  }, [historyIndex, historyStack]);
+
+  // Redo action
+  const handleRedo = useCallback(async () => {
+    if (historyIndex >= historyStack.length - 1) return;
+    triggerHaptic('medium');
+    setIsUndoingOrRedoing(true);
+    const nextIndex = historyIndex + 1;
+    const targetState = historyStack[nextIndex];
+    setHistoryIndex(nextIndex);
+
+    setDraftSuccess('↷ Redone menu change.');
+    setTimeout(() => setDraftSuccess(''), 3000);
+    setIsUndoingOrRedoing(false);
+  }, [historyIndex, historyStack]);
+
+  // Keyboard shortcut listener for web (Ctrl+Z / Ctrl+Y)
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        void handleUndo();
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === 'y' || (e.key === 'z' && e.shiftKey))
+      ) {
+        e.preventDefault();
+        void handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
   const categories = useMemo(() => {
     const fromProducts = Array.from(new Set(products.map((p) => p.category)));
-    const all = Array.from(new Set(['Coffee', 'Drinks', 'Food', ...fromProducts, ...customCategories]));
+    const all = Array.from(
+      new Set(['Coffee', 'Drinks', 'Food', ...fromProducts, ...customCategories])
+    );
     return ['All', ...all];
   }, [products, customCategories]);
 
@@ -43,11 +161,41 @@ function AdminMenuContent() {
     return products.filter((p) => p.category === selectedCat);
   }, [products, selectedCat]);
 
+  // Load Revision History from Supabase
+  const loadRevisions = async () => {
+    setLoadingRevisions(true);
+    try {
+      if (supabase) {
+        const { data, error: revErr } = await supabase
+          .from('restaurant_menu_drafts')
+          .select('*')
+          .eq('restaurant_id', currentRestaurant.id)
+          .order('version_number', { ascending: false });
+
+        if (data && !revErr) {
+          setRevisions(data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingRevisions(false);
+    }
+  };
+
+  const handleOpenHistory = () => {
+    triggerHaptic('light');
+    setShowHistoryModal(true);
+    void loadRevisions();
+  };
+
   const remove = async () => {
     if (!pendingDelete) return;
     triggerHaptic('medium');
     try {
       await deleteProduct(pendingDelete.id);
+      const updated = products.filter((p) => p.id !== pendingDelete.id);
+      pushToHistory(updated);
       setPendingDelete(undefined);
       setDraftSuccess(`✓ Removed "${pendingDelete.name}" from catalog.`);
       setTimeout(() => setDraftSuccess(''), 3500);
@@ -59,7 +207,7 @@ function AdminMenuContent() {
   const handleDuplicate = async (prod: any) => {
     triggerHaptic('medium');
     try {
-      await addProduct({
+      const newId = await addProduct({
         name: `${prod.name} (Copy)`,
         price: prod.price,
         category: prod.category,
@@ -68,6 +216,12 @@ function AdminMenuContent() {
         imageUrl: prod.imageUrl,
         customisationGroupIds: prod.customisationGroupIds || [],
       });
+      const duplicatedItem: Product = {
+        ...prod,
+        id: newId,
+        name: `${prod.name} (Copy)`,
+      };
+      pushToHistory([...products, duplicatedItem]);
       setDraftSuccess(`✓ Duplicated "${prod.name}" successfully!`);
       setTimeout(() => setDraftSuccess(''), 3500);
     } catch (e: any) {
@@ -75,20 +229,57 @@ function AdminMenuContent() {
     }
   };
 
+  const handleToggleSoldOutWithHistory = async (id: string, soldOut: boolean) => {
+    await toggleSoldOut(id, soldOut);
+    const updated = products.map((p) => (p.id === id ? { ...p, soldOut } : p));
+    pushToHistory(updated);
+  };
+
   const handlePublishSnapshot = async () => {
     triggerHaptic('success');
+    const author = staff?.displayName || staff?.email || 'Menu Editor';
     try {
       if (supabase) {
         await supabase.rpc('publish_menu_draft', {
           p_restaurant_id: currentRestaurant.id,
           p_snapshot: products,
-          p_published_by: 'Menu Editor',
+          p_published_by: author,
         });
       }
       setDraftSuccess('✓ Menu snapshot published to revision history!');
       setTimeout(() => setDraftSuccess(''), 4000);
     } catch (e: any) {
       alert(e.message || 'Could not publish draft');
+    }
+  };
+
+  // Restore snapshot version
+  const handleRestoreVersion = async (rev: MenuRevision) => {
+    triggerHaptic('medium');
+    setRestoring(true);
+    try {
+      if (!Array.isArray(rev.snapshot)) {
+        throw new Error('Invalid snapshot data.');
+      }
+
+      if (supabase) {
+        // Clear and restore products for this restaurant
+        await supabase.rpc('publish_menu_draft', {
+          p_restaurant_id: currentRestaurant.id,
+          p_snapshot: rev.snapshot,
+          p_published_by: `Restored from v${rev.version_number} by ${staff?.displayName || staff?.email || 'Admin'}`,
+        });
+      }
+
+      await refresh();
+      setPendingRestore(null);
+      setShowHistoryModal(false);
+      setDraftSuccess(`✓ Restored catalog to Version ${rev.version_number}!`);
+      setTimeout(() => setDraftSuccess(''), 4000);
+    } catch (e: any) {
+      alert(e.message || 'Could not restore version');
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -102,18 +293,68 @@ function AdminMenuContent() {
     triggerHaptic('success');
   };
 
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < historyStack.length - 1;
+
   return (
     <Screen>
       <Header
         title="Menu & Catalog Editor"
         right={
-          <Pressable style={s.historyBtn} onPress={handlePublishSnapshot} accessibilityLabel="Publish revision">
-            <Ionicons name="cloud-upload-outline" size={18} color={colors.espresso} />
-          </Pressable>
+          <View style={s.headerRightRow}>
+            {/* Undo Button */}
+            <Pressable
+              style={[s.headerToolBtn, !canUndo && s.headerToolBtnDisabled]}
+              onPress={() => void handleUndo()}
+              disabled={!canUndo}
+              accessibilityLabel="Undo (Ctrl+Z)"
+            >
+              <Ionicons
+                name="arrow-undo-outline"
+                size={16}
+                color={canUndo ? colors.espresso : colors.muted}
+              />
+            </Pressable>
+
+            {/* Redo Button */}
+            <Pressable
+              style={[s.headerToolBtn, !canRedo && s.headerToolBtnDisabled]}
+              onPress={() => void handleRedo()}
+              disabled={!canRedo}
+              accessibilityLabel="Redo (Ctrl+Y)"
+            >
+              <Ionicons
+                name="arrow-redo-outline"
+                size={16}
+                color={canRedo ? colors.espresso : colors.muted}
+              />
+            </Pressable>
+
+            {/* Version History Button */}
+            <Pressable
+              style={s.headerToolBtn}
+              onPress={handleOpenHistory}
+              accessibilityLabel="Version History"
+            >
+              <Ionicons name="time-outline" size={16} color={colors.espresso} />
+            </Pressable>
+
+            {/* Publish Revision Button */}
+            <Pressable
+              style={s.headerPublishBtn}
+              onPress={handlePublishSnapshot}
+              accessibilityLabel="Publish Snapshot"
+            >
+              <Ionicons name="cloud-upload-outline" size={16} color={colors.white} />
+            </Pressable>
+          </View>
         }
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         {/* Banner & Action Hub */}
         <View style={s.banner}>
           <View style={{ flex: 1 }}>
@@ -122,15 +363,29 @@ function AdminMenuContent() {
               {loading ? 'Loading items…' : `${products.length} active menu items`}
             </Text>
           </View>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
+          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+            {/* Customer Live Preview Button */}
+            <Pressable
+              style={s.previewBtn}
+              onPress={() => {
+                triggerHaptic('light');
+                setShowPreviewModal(true);
+              }}
+              accessibilityLabel="Preview Customer Menu"
+            >
+              <Ionicons name="eye-outline" size={14} color={colors.white} />
+              <Text style={s.previewBtnText}>Preview</Text>
+            </Pressable>
+
             <Pressable
               style={s.pdfImportBtn}
               onPress={() => router.push('/admin-menu-pdf')}
               accessibilityLabel="Upload Menu PDF"
             >
               <Ionicons name="document-text-outline" size={14} color={colors.caramel} />
-              <Text style={s.pdfImportText}>Upload PDF</Text>
+              <Text style={s.pdfImportText}>PDF</Text>
             </Pressable>
+
             <Pressable
               style={s.addBtn}
               onPress={() => router.push('/admin-product')}
@@ -141,6 +396,7 @@ function AdminMenuContent() {
           </View>
         </View>
 
+        {/* Action / Success Feedback Banner */}
         {!!draftSuccess && (
           <View style={s.successBox}>
             <Text style={s.successText}>{draftSuccess}</Text>
@@ -155,7 +411,7 @@ function AdminMenuContent() {
               <Text style={s.pdfTeaserTitle}>QUICK MENU BUILDER (PDF / PHOTO)</Text>
             </View>
             <Text style={s.pdfTeaserSub}>
-              Upload your restaurant menu PDF or flyer to auto-extract items, categories & prices.
+              Upload your menu PDF or flyer to auto-extract items, categories & prices.
             </Text>
           </View>
           <Pressable style={s.pdfTeaserBtn} onPress={() => router.push('/admin-menu-pdf')}>
@@ -165,7 +421,11 @@ function AdminMenuContent() {
 
         {/* Category Scroll & New Category Button */}
         <View style={s.catRow}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catScroll}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.catScroll}
+          >
             {categories.map((cat) => {
               const active = selectedCat === cat;
               return (
@@ -207,7 +467,7 @@ function AdminMenuContent() {
                 <Switch
                   value={!product.soldOut}
                   onValueChange={(available) =>
-                    void toggleSoldOut(product.id, !available)
+                    void handleToggleSoldOutWithHistory(product.id, !available)
                   }
                   trackColor={{ false: '#D8CBC1', true: '#A9C7AF' }}
                   thumbColor={!product.soldOut ? colors.green : colors.muted}
@@ -259,7 +519,9 @@ function AdminMenuContent() {
         {filteredProducts.length === 0 && !loading && (
           <View style={s.emptyBox}>
             <Text style={s.emptyTitle}>No items in "{selectedCat}"</Text>
-            <Text style={s.emptySub}>Add a new item or upload a menu PDF to populate this category.</Text>
+            <Text style={s.emptySub}>
+              Add a new item or upload a menu PDF to populate this category.
+            </Text>
             <Pressable style={s.emptyAddBtn} onPress={() => router.push('/admin-product')}>
               <Text style={s.emptyAddBtnText}>+ Add Item</Text>
             </Pressable>
@@ -283,9 +545,283 @@ function AdminMenuContent() {
         )}
       </ScrollView>
 
+      {/* Feature 2A: Full Customer Preview Modal */}
+      {showPreviewModal && (
+        <Modal
+          visible
+          animationType="slide"
+          onRequestClose={() => setShowPreviewModal(false)}
+        >
+          <Screen>
+            <Header
+              title="Customer Menu Preview"
+              right={
+                <Pressable
+                  style={s.closePreviewBtn}
+                  onPress={() => setShowPreviewModal(false)}
+                >
+                  <Ionicons name="close" size={20} color={colors.espresso} />
+                </Pressable>
+              }
+            />
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+              {/* Preview Notice Bar */}
+              <View style={s.previewNoticeBar}>
+                <Ionicons name="eye" size={16} color={colors.espresso} />
+                <Text style={s.previewNoticeText}>
+                  LIVE CUSTOMER VIEW · {currentRestaurant.name.toUpperCase()}
+                </Text>
+              </View>
+
+              {/* Customer Hero Banner */}
+              <View style={s.previewHeroWrap}>
+                <RestaurantCoverImage
+                  uri={currentRestaurant.coverImageUrl || currentRestaurant.hero_image_url}
+                  name={currentRestaurant.name}
+                  style={s.previewCoverImg}
+                  placeholderStyle={s.previewCoverImg}
+                />
+                <View style={s.previewHeroOverlay} />
+                <View style={s.previewHeroContent}>
+                  <RestaurantLogoImage
+                    uri={currentRestaurant.logoUrl}
+                    name={currentRestaurant.name}
+                    size={44}
+                    style={{ borderWidth: 2, borderColor: colors.white }}
+                  />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={s.previewRestName}>{currentRestaurant.name}</Text>
+                    <Text style={s.previewRestHours}>
+                      {currentRestaurant.openingTime} – {currentRestaurant.closingTime} · {currentRestaurant.address || 'Click & Collect'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Mode Selector Preview */}
+              <View style={s.previewModeRow}>
+                <Pressable
+                  style={[s.previewModePill, previewMode === 'pickup' && s.previewModePillActive]}
+                  onPress={() => setPreviewMode('pickup')}
+                >
+                  <Ionicons
+                    name="bag-handle-outline"
+                    size={14}
+                    color={previewMode === 'pickup' ? colors.white : colors.espresso}
+                  />
+                  <Text style={[s.previewModeText, previewMode === 'pickup' && s.previewModeTextActive]}>
+                    Pickup / Takeaway
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[s.previewModePill, previewMode === 'table' && s.previewModePillActive]}
+                  onPress={() => setPreviewMode('table')}
+                >
+                  <Ionicons
+                    name="qr-code-outline"
+                    size={14}
+                    color={previewMode === 'table' ? colors.white : colors.espresso}
+                  />
+                  <Text style={[s.previewModeText, previewMode === 'table' && s.previewModeTextActive]}>
+                    Table QR Dine-In
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Category Pills */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[s.catScroll, { paddingHorizontal: 16, marginBottom: 14 }]}
+              >
+                {categories.map((cat) => {
+                  const active = previewCat === cat;
+                  return (
+                    <Pressable
+                      key={cat}
+                      style={[s.catPill, active && s.catPillActive]}
+                      onPress={() => setPreviewCat(cat)}
+                    >
+                      <Text style={[s.catPillText, active && s.catPillTextActive]}>{cat}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Customer Product Cards Grid */}
+              <View style={{ paddingHorizontal: 16, gap: 10 }}>
+                {products
+                  .filter((p) => previewCat === 'All' || p.category === previewCat)
+                  .map((prod) => (
+                    <Card key={prod.id} style={s.previewProductCard}>
+                      <ProductImage
+                        uri={prod.imageUrl}
+                        category={prod.category}
+                        name={prod.name}
+                        style={s.previewProdImg}
+                        placeholderStyle={s.previewProdImg}
+                      />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={s.previewProdName}>{prod.name}</Text>
+                        {!!prod.description && (
+                          <Text style={s.previewProdDesc} numberOfLines={2}>
+                            {prod.description}
+                          </Text>
+                        )}
+                        <View style={s.previewPriceRow}>
+                          <Text style={s.previewProdPrice}>{money(prod.price)}</Text>
+                          {prod.soldOut && (
+                            <View style={s.previewSoldOutBadge}>
+                              <Text style={s.previewSoldOutText}>Sold Out</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                      <View style={s.previewAddBtn}>
+                        <Ionicons name="add" size={18} color={colors.white} />
+                      </View>
+                    </Card>
+                  ))}
+              </View>
+
+              {/* Publish or Close Footer */}
+              <View style={s.previewFooter}>
+                <Button
+                  label="Looks Great — Close Preview"
+                  onPress={() => setShowPreviewModal(false)}
+                />
+              </View>
+            </ScrollView>
+          </Screen>
+        </Modal>
+      )}
+
+      {/* Feature 2D: Version History & Restore Modal */}
+      {showHistoryModal && (
+        <Modal
+          visible
+          animationType="slide"
+          onRequestClose={() => setShowHistoryModal(false)}
+        >
+          <Screen>
+            <Header
+              title="Menu Revision History"
+              right={
+                <Pressable
+                  style={s.closePreviewBtn}
+                  onPress={() => setShowHistoryModal(false)}
+                >
+                  <Ionicons name="close" size={20} color={colors.espresso} />
+                </Pressable>
+              }
+            />
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+              <View style={s.historyHeaderBox}>
+                <Ionicons name="git-branch-outline" size={20} color={colors.caramel} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.historyHeaderTitle}>VERSION CONTROL & RESTORE</Text>
+                  <Text style={s.historyHeaderSub}>
+                    Snapshots saved automatically upon publishing. You can restore any past version with 1-click.
+                  </Text>
+                </View>
+              </View>
+
+              {loadingRevisions && (
+                <View style={s.loadingBox}>
+                  <ActivityIndicator size="large" color={colors.espresso} />
+                  <Text style={s.loadingText}>Loading revision timeline…</Text>
+                </View>
+              )}
+
+              {!loadingRevisions && revisions.length === 0 && (
+                <View style={s.emptyBox}>
+                  <Ionicons name="time-outline" size={40} color={colors.muted} />
+                  <Text style={s.emptyTitle}>No Revisions Saved Yet</Text>
+                  <Text style={s.emptySub}>
+                    Tap the cloud icon in the top header to save your first snapshot.
+                  </Text>
+                </View>
+              )}
+
+              {!loadingRevisions &&
+                revisions.map((rev) => {
+                  const itemCount = Array.isArray(rev.snapshot) ? rev.snapshot.length : 0;
+                  const dateStr = new Date(rev.created_at).toLocaleString();
+
+                  return (
+                    <Card key={rev.id} style={s.revisionCard}>
+                      <View style={s.revTop}>
+                        <View style={s.revBadge}>
+                          <Text style={s.revBadgeText}>v{rev.version_number}</Text>
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                          <Text style={s.revTitle}>{rev.title || `Revision v${rev.version_number}`}</Text>
+                          <Text style={s.revMeta}>
+                            Published by {rev.published_by || 'Admin'} · {itemCount} items
+                          </Text>
+                          <Text style={s.revTime}>{dateStr}</Text>
+                        </View>
+                      </View>
+
+                      <View style={s.revActions}>
+                        <Pressable
+                          style={s.restoreBtn}
+                          onPress={() => setPendingRestore(rev)}
+                          disabled={restoring}
+                        >
+                          <Ionicons name="refresh-outline" size={14} color={colors.white} />
+                          <Text style={s.restoreBtnText}>Restore This Version</Text>
+                        </Pressable>
+                      </View>
+                    </Card>
+                  );
+                })}
+
+              {/* Restore Confirmation Dialog */}
+              {!!pendingRestore && (
+                <View style={s.confirm}>
+                  <Text style={s.confirmTitle}>
+                    Restore Version {pendingRestore.version_number}?
+                  </Text>
+                  <Text style={s.confirmText}>
+                    This will replace your current menu catalog with the {Array.isArray(pendingRestore.snapshot) ? pendingRestore.snapshot.length : 0} items from this snapshot.
+                  </Text>
+                  <View style={s.confirmActions}>
+                    <Pressable
+                      style={s.cancel}
+                      onPress={() => setPendingRestore(null)}
+                      disabled={restoring}
+                    >
+                      <Text style={s.cancelText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={s.delete}
+                      onPress={() => void handleRestoreVersion(pendingRestore)}
+                      disabled={restoring}
+                    >
+                      <Text style={s.deleteText}>
+                        {restoring ? 'Restoring…' : 'Confirm Restore'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+          </Screen>
+        </Modal>
+      )}
+
       {/* New Category Modal */}
       {newCatModal && (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setNewCatModal(false)}>
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setNewCatModal(false)}
+        >
           <View style={s.modalBackdrop}>
             <Card style={s.catModalCard}>
               <View style={s.modalHeader}>
@@ -326,12 +862,25 @@ function AdminMenuContent() {
 }
 
 const s = StyleSheet.create({
-  historyBtn: {
-    padding: 6,
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerToolBtn: {
+    padding: 7,
     backgroundColor: colors.white,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.line,
+  },
+  headerToolBtnDisabled: {
+    opacity: 0.4,
+  },
+  headerPublishBtn: {
+    padding: 7,
+    backgroundColor: colors.espresso,
+    borderRadius: 8,
   },
   banner: {
     flexDirection: 'row',
@@ -358,6 +907,20 @@ const s = StyleSheet.create({
     color: colors.espresso,
     marginTop: 2,
   },
+  previewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.espresso,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radii.md,
+  },
+  previewBtnText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '800',
+  },
   pdfImportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -375,9 +938,9 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
   addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.espresso,
     alignItems: 'center',
     justifyContent: 'center',
@@ -614,6 +1177,244 @@ const s = StyleSheet.create({
     color: colors.white,
     fontWeight: '800',
     fontSize: 12,
+  },
+  closePreviewBtn: {
+    padding: 6,
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  previewNoticeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FFF8EB',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EBD9B6',
+    marginBottom: 10,
+  },
+  previewNoticeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.espresso,
+    letterSpacing: 0.8,
+  },
+  previewHeroWrap: {
+    height: 140,
+    marginHorizontal: 16,
+    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 12,
+  },
+  previewCoverImg: {
+    width: '100%',
+    height: '100%',
+  },
+  previewHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  previewHeroContent: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  previewRestName: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  previewRestHours: {
+    fontSize: 11,
+    color: '#E7DCD5',
+    marginTop: 2,
+  },
+  previewModeRow: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    backgroundColor: colors.creamSoft,
+    borderRadius: radii.full,
+    padding: 4,
+    gap: 6,
+    marginBottom: 12,
+  },
+  previewModePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+  },
+  previewModePillActive: {
+    backgroundColor: colors.espresso,
+  },
+  previewModeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.espresso,
+  },
+  previewModeTextActive: {
+    color: colors.white,
+  },
+  previewProductCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.line,
+    ...shadows.sm,
+  },
+  previewProdImg: {
+    width: 60,
+    height: 60,
+    borderRadius: 14,
+  },
+  previewProdName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  previewProdDesc: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  previewPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  previewProdPrice: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.espresso,
+  },
+  previewSoldOutBadge: {
+    backgroundColor: '#FDECEA',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  previewSoldOutText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.danger,
+  },
+  previewAddBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.espresso,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewFooter: {
+    padding: 16,
+    marginTop: 10,
+  },
+  historyHeaderBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.creamSoft,
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 14,
+  },
+  historyHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.espresso,
+    letterSpacing: 0.8,
+  },
+  historyHeaderSub: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  revisionCard: {
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: 10,
+    ...shadows.sm,
+  },
+  revTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  revBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.espresso,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  revBadgeText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  revTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.espresso,
+  },
+  revMeta: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  revTime: {
+    fontSize: 10,
+    color: colors.muted,
+    marginTop: 1,
+  },
+  revActions: {
+    borderTopWidth: 1,
+    borderTopColor: colors.lineLight,
+    paddingTop: 8,
+    alignItems: 'flex-end',
+  },
+  restoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.espresso,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.sm,
+  },
+  restoreBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  loadingBox: {
+    paddingVertical: 30,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 12,
+    color: colors.muted,
+    fontWeight: '700',
+    marginTop: 6,
   },
   modalBackdrop: {
     flex: 1,

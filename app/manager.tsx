@@ -197,6 +197,12 @@ function ManagerContent() {
         <Text style={s.gridTitle}>MANAGER OPERATIONS & STATIONS</Text>
         <View style={s.linkGrid}>
           <ManagerActionLink
+            icon="pulse-outline"
+            title="Health & Diagnostics"
+            subtitle="Device telemetry, stuck orders & setup checks"
+            route="/admin-health"
+          />
+          <ManagerActionLink
             icon="restaurant-outline"
             title="Manage Menu"
             subtitle="Add, edit, duplicate, pricing & sold-out controls"

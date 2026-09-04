@@ -384,6 +384,12 @@ export default function Admin() {
 
         {/* Quick Launch Cards (Available in Simple & Advanced Mode) */}
         <AdminLink
+          icon="pulse-outline"
+          title="Restaurant Health & Diagnostics"
+          text="Realtime connection, stuck orders, menu health & morning status check"
+          route="/admin-health"
+        />
+        <AdminLink
           icon="options-outline"
           title="Restaurant Feature Settings"
           text="Enable or disable 58 optional capabilities (Ordering, Operations, Marketing, AI, Staff)"

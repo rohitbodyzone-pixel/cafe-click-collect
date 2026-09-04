@@ -203,11 +203,17 @@ function SuperAdminContent() {
         </View>
       </View>
 
-      {/* Action Buttons: Features, Billing & Onboarding */}
+      {/* Action Buttons: Health, Features, Billing & Onboarding */}
       <View style={[s.actionRow, { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }]}>
+        <Button
+          label="Fleet Health & Alerts"
+          icon="pulse-outline"
+          onPress={() => router.push('/super-admin-health' as never)}
+        />
         <Button
           label="Feature Manager"
           icon="options-outline"
+          secondary
           onPress={() => router.push('/super-admin-features' as never)}
         />
         <Button
@@ -586,6 +592,19 @@ function SuperAdminContent() {
                 >
                   <Ionicons name="settings-outline" size={14} color={colors.espresso} />
                   <Text style={s.manageBtnText}>Manage Admin →</Text>
+                </Pressable>
+                <Pressable
+                  style={s.analyticsBtn}
+                  onPress={() => {
+                    setCurrentRestaurant(restaurant);
+                    router.push({
+                      pathname: '/admin-health',
+                      params: { restaurantId: restaurant.id },
+                    });
+                  }}
+                >
+                  <Ionicons name="pulse-outline" size={14} color={colors.espresso} />
+                  <Text style={s.analyticsBtnText}>Health</Text>
                 </Pressable>
                 <Pressable
                   style={s.analyticsBtn}
