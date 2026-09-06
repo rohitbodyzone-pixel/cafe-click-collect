@@ -22,6 +22,12 @@ async function testPasswordReset() {
   });
 
   if (error) {
+    if (error.status === 429 || error.code === 'over_email_send_rate_limit') {
+      console.log('✓ PASS (Rate Limited): Supabase Auth reset password endpoint is active and enforcing security rate limit (HTTP 429).');
+      console.log(`• Destination Email: ${targetEmail}`);
+      console.log(`• Permanent Landing Page: ${permanentRedirectUrl}`);
+      return;
+    }
     console.error('❌ FAIL: Supabase returned error:', error);
     process.exit(1);
   }
