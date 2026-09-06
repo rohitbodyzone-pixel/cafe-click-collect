@@ -101,20 +101,8 @@ export default function CustomerMarketplaceHome() {
     setCurrentRestaurant(restaurant);
     router.push({
       pathname: '/menu',
-      params: { restaurant: restaurant.slug, mode: orderMode },
+      params: { restaurant: restaurant.slug, mode: 'pickup' },
     });
-  };
-
-  const handleChooseDineIn = () => {
-    setOrderMode('table');
-    const target = featuredRestaurant || restaurants[0];
-    if (target) {
-      setCurrentRestaurant(target);
-      router.push({
-        pathname: '/menu',
-        params: { restaurant: target.slug, mode: 'table' },
-      });
-    }
   };
 
   const handleReorderUsual = () => {

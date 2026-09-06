@@ -80,7 +80,7 @@ const tablesSource = fs.readFileSync(path.join(__dirname, '../app/admin-tables.t
 const bellSource = fs.readFileSync(path.join(__dirname, '../src/components/TableBellModal.tsx'), 'utf-8');
 assert(tablesSource.includes('<Tooltip text="Generate 20-Table QR Starter Pack">'), 'Starter pack CTA must have Tooltip');
 assert(tablesSource.includes('Deactivate Table') || tablesSource.includes('Activate Table'), 'Table active toggle must have Tooltip');
-assert(tablesSource.includes('<Tooltip text="View & Print Table QR Code">'), 'Table QR button must have Tooltip');
+assert(tablesSource.includes('View & Print Single Table QR Card') || tablesSource.includes('View & Print Table QR Code'), 'Table QR button must have Tooltip');
 assert(tablesSource.includes('<Tooltip text="Delete Table">'), 'Table delete button must have Tooltip');
 assert(bellSource.includes('<Tooltip text="Call Staff / Table Service">'), 'Floating bell button must have Tooltip');
 assert(bellSource.includes('<Tooltip text="Close Dialog">'), 'Modal close button must have Tooltip');

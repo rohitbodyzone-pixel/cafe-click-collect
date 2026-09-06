@@ -28,7 +28,6 @@ export default function DedicatedMenuScreen() {
   const { isFeatureEnabled } = useFeaturePermission();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [showTables, setShowTables] = useState(false);
 
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
   const customerOrders = orders.filter((order) => order.customerKey === customerKey);
@@ -42,14 +41,14 @@ export default function DedicatedMenuScreen() {
     }
   }, [restaurantSlug, shortSlug, currentRestaurant.slug, selectRestaurantBySlug]);
 
-  // Handle mode param: if mode=table, switch orderMode to table
+  // Handle explicit mode param
   useEffect(() => {
-    if (mode === 'table' && orderMode !== 'table') {
-      setOrderMode('table');
+    if (mode === 'pickup' && orderMode !== 'pickup') {
+      setOrderMode('pickup');
     }
   }, [mode, orderMode, setOrderMode]);
 
-  // Handle Table QR code scanning
+  // Handle Table QR code scanning parameter
   useEffect(() => {
     if (!tableCode || loadingTables) return;
     const found = tables.find(
@@ -57,7 +56,6 @@ export default function DedicatedMenuScreen() {
     );
     if (found) {
       setOrderMode('table', found);
-      setShowTables(false);
     }
   }, [tableCode, tables, loadingTables, setOrderMode]);
 
@@ -158,55 +156,6 @@ export default function DedicatedMenuScreen() {
               <Text style={s.pickupBannerTitle}>CLICK & COLLECT ORDER</Text>
               <Text style={s.pickupBannerSub}>Order ahead & collect at counter</Text>
             </View>
-          </View>
-        )}
-
-        {/* Table Selector Picker */}
-        {showTables && (
-          <View style={s.tablePicker}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={s.tablePickerTitle}>Select your table</Text>
-              <Pressable onPress={() => setShowTables(false)}>
-                <Ionicons name="close-circle" size={20} color={colors.muted} />
-              </Pressable>
-            </View>
-            <Text style={s.tablePickerHelp}>
-              Choose the table number you are seated at for direct service.
-            </Text>
-            {loadingTables ? (
-              <Text style={s.tablePickerHelp}>Loading tables…</Text>
-            ) : tables.filter((item) => item.active).length === 0 ? (
-              <Text style={s.tablePickerHelp}>No active tables found. You can still order at the counter.</Text>
-            ) : (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
-                {tables
-                  .filter((item) => item.active)
-                  .map((item) => (
-                    <Pressable
-                      key={item.id}
-                      style={[s.tableChoice, table?.id === item.id && s.tableChoiceActive]}
-                      onPress={() => {
-                        setOrderMode('table', item);
-                        setShowTables(false);
-                      }}
-                    >
-                      <Ionicons
-                        name="restaurant-outline"
-                        size={16}
-                        color={table?.id === item.id ? colors.white : colors.espresso}
-                      />
-                      <Text
-                        style={[
-                          s.tableChoiceText,
-                          table?.id === item.id && { color: colors.white },
-                        ]}
-                      >
-                        {item.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-              </View>
-            )}
           </View>
         )}
 

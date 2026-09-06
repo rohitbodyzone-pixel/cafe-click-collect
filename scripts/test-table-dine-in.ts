@@ -78,18 +78,18 @@ async function runDineInTests() {
     `Table ID: ${tableB?.id}, Display Name: ${tableB?.display_name}, Code: ${tableB?.code}`
   );
 
-  // 4. Verify Table Isolation (Table 5 does NOT belong to Restaurant B)
+  // 4. Verify Multi-Tenant Table Isolation
   const { data: tableCross } = await supabase
     .from('cafe_tables')
     .select('*')
     .eq('restaurant_id', restB.id)
-    .ilike('code', '5')
+    .eq('id', tableA.id)
     .maybeSingle();
 
   assert(
-    !tableCross,
-    'Table Isolation: Table 5 is strictly isolated to Restaurant A',
-    'No cross-leakage of Table 5 to Restaurant B'
+    !tableCross && tableA.restaurant_id === restA.id,
+    'Table Isolation: Table 5 of Restaurant A is strictly isolated from Restaurant B',
+    'No cross-tenant leakage of Restaurant A table record into Restaurant B'
   );
 
   // 5. Place a Table Order for Table 5 (Dine In)
@@ -201,14 +201,13 @@ async function runDineInTests() {
     'TableLandingRoute directly routes to /menu in table mode'
   );
 
-  // 10. Home screen Dine In handler verification
+  // 10. Home screen QR-only Dine In verification (manual table activator removed)
   const homePath = path.resolve(process.cwd(), 'app/index.tsx');
   const homeContent = fs.readFileSync(homePath, 'utf-8');
   assert(
-    homeContent.includes('handleChooseDineIn') &&
-    homeContent.includes("pathname: '/menu'") &&
-    homeContent.includes("mode: 'table'"),
-    'Home screen Dine In button immediately navigates to /menu with mode=table'
+    !homeContent.includes('handleChooseDineIn') &&
+    homeContent.includes("mode: 'pickup'"),
+    'Home screen manual Dine In button removed (Table ordering strictly initiated via Table QR)'
   );
 
   // Cleanup test orders

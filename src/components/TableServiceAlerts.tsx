@@ -83,6 +83,7 @@ export function TableServiceAlerts({
 
   const topRequest = pendingRequests[0];
   const isUrgent = topRequest.status === 'pending';
+  const topWaitingMins = Math.max(0, Math.floor((Date.now() - new Date(topRequest.createdAt).getTime()) / 60000));
 
   return (
     <View style={s.container}>
@@ -116,6 +117,9 @@ export function TableServiceAlerts({
                 {topRequest.status === 'acknowledged' ? 'ACKNOWLEDGED' : 'NEW CALL'}
               </Text>
             </View>
+            <Text style={s.waitingMetaText}>
+              · {topWaitingMins === 0 ? '<1m ago' : `${topWaitingMins}m ago`}
+            </Text>
           </View>
 
           <Text style={s.requestLabel}>
@@ -155,37 +159,43 @@ export function TableServiceAlerts({
           <Text style={s.panelHeading}>
             OTHER ACTIVE REQUESTS ({pendingRequests.length - 1})
           </Text>
-          {pendingRequests.slice(1).map((req) => (
-            <View key={req.id} style={s.listItem}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.listTableText}>
-                  Table {req.tableCode} ·{' '}
-                  <Text style={{ fontWeight: '700', color: colors.ink }}>
-                    {SERVICE_REQUEST_LABELS[req.requestType] || req.requestType}
+          {pendingRequests.slice(1).map((req) => {
+            const reqWaitingMins = Math.max(0, Math.floor((Date.now() - new Date(req.createdAt).getTime()) / 60000));
+            return (
+              <View key={req.id} style={s.listItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.listTableText}>
+                    Table {req.tableCode} ·{' '}
+                    <Text style={{ fontWeight: '700', color: colors.ink }}>
+                      {SERVICE_REQUEST_LABELS[req.requestType] || req.requestType}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: colors.muted }}>
+                      {' '}· {reqWaitingMins === 0 ? '<1m ago' : `${reqWaitingMins}m ago`}
+                    </Text>
                   </Text>
-                </Text>
-                {!!req.notes && <Text style={s.listNotes}>"{req.notes}"</Text>}
-              </View>
+                  {!!req.notes && <Text style={s.listNotes}>"{req.notes}"</Text>}
+                </View>
 
-              <View style={s.listActions}>
-                {req.status === 'pending' && (
+                <View style={s.listActions}>
+                  {req.status === 'pending' && (
+                    <Pressable
+                      style={s.miniAckBtn}
+                      onPress={() => void handleAcknowledge(req.id)}
+                    >
+                      <Text style={s.miniAckText}>Ack</Text>
+                    </Pressable>
+                  )}
                   <Pressable
-                    style={s.miniAckBtn}
-                    onPress={() => void handleAcknowledge(req.id)}
+                    style={s.miniDoneBtn}
+                    onPress={() => void handleComplete(req.id)}
                   >
-                    <Text style={s.miniAckText}>Ack</Text>
+                    <Ionicons name="checkmark" size={12} color={colors.white} />
+                    <Text style={s.miniDoneText}>Done</Text>
                   </Pressable>
-                )}
-                <Pressable
-                  style={s.miniDoneBtn}
-                  onPress={() => void handleComplete(req.id)}
-                >
-                  <Ionicons name="checkmark" size={12} color={colors.white} />
-                  <Text style={s.miniDoneText}>Done</Text>
-                </Pressable>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
     </View>
@@ -254,6 +264,11 @@ const s = StyleSheet.create({
   },
   statusTextAck: {
     color: colors.green,
+  },
+  waitingMetaText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.muted,
   },
   requestLabel: {
     fontSize: 13,

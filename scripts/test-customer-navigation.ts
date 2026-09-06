@@ -49,21 +49,17 @@ function runTests() {
     'My Profile renders CustomerBottomNav with activeTab="profile"'
   );
 
-  // 3. Check app/index.tsx has Pickup/Dine In choice cards and mode switcher
+  // 3. Verify Home starting screen adheres to QR-only Dine-In architecture (no manual table mode)
   const indexPath = path.resolve(root, 'app/index.tsx');
   const indexContent = fs.readFileSync(indexPath, 'utf-8');
   assert(
-    indexContent.includes('startSection') &&
-    indexContent.includes('PICKUP') &&
-    indexContent.includes('DINE IN') &&
-    indexContent.includes('Order ahead & collect') &&
-    indexContent.includes('Order at your table'),
-    'Home starting screen displays large visual PICKUP and DINE IN choice cards'
+    indexContent.includes("mode: 'pickup'") &&
+    !indexContent.includes("handleChooseDineIn"),
+    'Home starting screen defaults strictly to Pickup (manual Dine-In activation removed)'
   );
   assert(
-    indexContent.includes('modeSwitcherRow') &&
-    indexContent.includes('modePill'),
-    'Home header contains quick mode toggle switcher for Pickup ↔ Dine In'
+    !indexContent.includes('modeSwitcherRow'),
+    'Home header does not expose manual Dine-In switcher (QR-only Dine-In architecture)'
   );
   assert(
     indexContent.includes('tableCode') &&

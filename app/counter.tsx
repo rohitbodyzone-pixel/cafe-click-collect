@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TextInput,
   Modal,
+  Platform,
 } from 'react-native';
 import { Screen, Header, Card, Button, Tooltip, triggerHaptic } from '@/src/components/UI';
 import { RoleGate } from '@/src/components/RoleGate';
@@ -95,6 +96,39 @@ function CounterPortalContent() {
       setApprovingOrderId(null);
     }
   };
+
+  // Track alerted table order IDs to prevent duplicate chimes on re-render
+  const alertedTableOrderIdsRef = React.useRef(new Set<string>());
+
+  useEffect(() => {
+    const brandNewOrders = unapprovedTableOrders.filter(
+      (o) => !alertedTableOrderIdsRef.current.has(o.id)
+    );
+
+    if (brandNewOrders.length > 0) {
+      brandNewOrders.forEach((o) => alertedTableOrderIdsRef.current.add(o.id));
+      triggerHaptic('medium');
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && (window as any).AudioContext) {
+        try {
+          const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+          if (AudioCtx) {
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.4);
+          }
+        } catch {}
+      }
+    }
+  }, [unapprovedTableOrders]);
 
   // Attendance state
   const [activeSession, setActiveSession] = useState<ActiveAttendance | null>(null);
@@ -422,12 +456,15 @@ function CounterPortalContent() {
             </View>
 
             {unapprovedTableOrders.map((to) => {
-              const tableLabel = to.table?.name || `Table ${to.table?.code || '—'}`;
+              const tableCode = to.table?.code || (to as any).table_id || '—';
+              const tableLabel = to.table?.name || `Table ${tableCode}`;
+              const waitingMins = Math.max(0, Math.floor((Date.now() - new Date(to.createdAt).getTime()) / 60000));
               return (
                 <Card key={to.id} style={s.tableOrderCard}>
                   <View style={s.tableOrderCardHeader}>
                     <View style={s.tableOrderTitleWrap}>
                       <View style={s.tableNumberPill}>
+                        <Ionicons name="restaurant" size={13} color={colors.caramel} />
                         <Text style={s.tableNumberPillText}>
                           {tableLabel.toUpperCase()}
                         </Text>
@@ -437,7 +474,7 @@ function CounterPortalContent() {
                           Customer: <Text style={{ fontWeight: '900', color: colors.espresso }}>{to.customerName}</Text>
                         </Text>
                         <Text style={s.tableOrderMeta}>
-                          {currentRestaurant.name} · Order #{to.id} · {new Date(to.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {currentRestaurant.name} · Order #{to.id} · Waiting: <Text style={{ fontWeight: '800', color: waitingMins > 5 ? colors.danger : colors.caramel }}>{waitingMins === 0 ? '<1m' : `${waitingMins}m`}</Text> ({new Date(to.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
                         </Text>
                       </View>
                     </View>
@@ -1113,10 +1150,15 @@ const s = StyleSheet.create({
     flex: 1,
   },
   tableNumberPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: colors.espresso,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.caramel,
   },
   tableNumberPillText: {
     color: colors.white,
